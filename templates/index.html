@@ -1,0 +1,62 @@
+ {% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noe Andrew - Portfolio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <a href="#profile" class="brand">Noe Andrew</a>
+            <nav>
+                <a href="#profile">Profile</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero" id="profile">
+            <div class="container hero-grid">
+                <div class="hero-identity">
+                    <p class="hero-kicker">Computer Science &middot; Universitas Indonesia</p>
+                    <h1>Noe Andrew</h1>
+                </div>
+                <div class="hero-photo">
+                    <div class="photo-block"></div>
+                    <img class="avatar" src="{% static 'image/NoeAndrew_Formal Photo.jpg' %}" alt="Photo of Noe">
+                </div>
+                <div class="hero-details">
+                    <p class="bio">Information Systems at Universitas Indonesia student passionate about software engineering and fintech. Been fortunate enough to win several hackathons and innovation competitions, but I'm equally proud of my wins on the dance floor. Collaborative problem-solver who thrives working with teams on technical challenges.</p>
+                    <dl class="meta-list">
+                        <div class="meta-row">
+                            <dt>NPM</dt>
+                            <dd>2506621440</dd>
+                        </div>
+                        <div class="meta-row">
+                            <dt>Program</dt>
+                            <dd>S1 Sistem Informasi</dd>
+                        </div>
+                    </dl>
+                    <div class="social-links">
+                        <a href="https://github.com/noeandrew-jm" class="social-link">GitHub</a>
+                        <a href="https://linkedin.com/Noe Andrew JM Silalahi" class="social-link">LinkedIn</a>
+                        <a href="noeandrewjms@gmail.com" class="social-link">Email</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <p>&copy; 2026 Noe Andrew. Fakultas Ilmu Komputer, Universitas Indonesia.</p>
+        </div>
+    </footer>
+</body>
+</html>
