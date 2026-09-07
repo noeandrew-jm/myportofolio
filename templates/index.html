@@ -1,4 +1,3 @@
- {% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,9 +12,11 @@
 <body>
     <header class="site-header">
         <div class="container">
-            <a href="#profile" class="brand">Noe Andrew</a>
+            <a href="/" class="brand">Noe Andrew</a>
             <nav>
-                <a href="#profile">Profile</a>
+                <a class="active" href="/">About</a>
+                <a href="/achievements/">Achievements</a>
+                <a href="/experience/">Experience</a>
             </nav>
         </div>
     </header>
@@ -29,7 +30,7 @@
                 </div>
                 <div class="hero-photo">
                     <div class="photo-block"></div>
-                    <img class="avatar" src="{% static 'image/NoeAndrew_Formal Photo.jpg' %}" alt="Photo of Noe">
+                    <img class="avatar" src="/static/image/NoeAndrew_Formal%20Photo.jpg" alt="Photo of Noe">
                 </div>
                 <div class="hero-details">
                     <p class="bio">Information Systems at Universitas Indonesia student passionate about software engineering and fintech. Been fortunate enough to win several hackathons and innovation competitions, but I'm equally proud of my wins on the dance floor. Collaborative problem-solver who thrives working with teams on technical challenges.</p>
@@ -48,6 +49,32 @@
                         <a href="https://linkedin.com/Noe Andrew JM Silalahi" class="social-link">LinkedIn</a>
                         <a href="noeandrewjms@gmail.com" class="social-link">Email</a>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="about-sections" id="focus-areas">
+            <div class="container">
+                <div class="section-heading">
+                    <p class="hero-kicker">What I bring</p>
+                    <h2>Focus areas</h2>
+                </div>
+                <div class="focus-grid">
+                    <article class="focus-item">
+                        <span class="focus-number">01</span>
+                        <h3>Software engineering</h3>
+                        <p>Building responsive interfaces, reliable backend systems, and secure authentication flows for useful digital products.</p>
+                    </article>
+                    <article class="focus-item">
+                        <span class="focus-number">02</span>
+                        <h3>AI and fintech</h3>
+                        <p>Exploring AI-powered productivity tools and fintech ideas through practical product development and thoughtful system design.</p>
+                    </article>
+                    <article class="focus-item">
+                        <span class="focus-number">03</span>
+                        <h3>Team collaboration</h3>
+                        <p>Working across technical and creative teams to turn early ideas into clear, usable, and production-ready outcomes.</p>
+                    </article>
                 </div>
             </div>
         </section>
