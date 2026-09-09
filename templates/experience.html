@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Experience - Noe Andrew</title>
+    <title>Experience - {{ name }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
@@ -12,11 +12,11 @@
 <body>
     <header class="site-header">
         <div class="container">
-            <a href="/" class="brand">Noe Andrew</a>
+            <a href="{% url 'main:show_main' %}" class="brand">{{ name }}</a>
             <nav>
-                <a href="/">About</a>
-                <a href="/achievements/">Achievements</a>
-                <a class="active" href="/experience/">Experience</a>
+                <a href="{% url 'main:show_main' %}#profile">About</a>
+                <a href="{% url 'main:show_achievements' %}">Achievements</a>
+                <a class="active" href="{% url 'main:show_experience' %}">Experience</a>
             </nav>
         </div>
     </header>
@@ -29,20 +29,27 @@
             </div>
         </section>
         <section class="container content-list">
-            <article class="content-item">
-                <img class="experience-image" src="/static/image/ddp0.jpg" alt="DDP-0 bootcamp platform">
-                <div>
-                    <h2>IT DEV - DDP 0</h2>
-                    <p>Built frontend and authentication system for DDP-0, a bootcamp platform serving 1,000+ students learning fundamental programming at Universitas Indonesia. Implemented responsive UI for registration and course management, integrated Google OAuth for secure access, and optimized application for high-volume concurrent users.</p>
-                </div>
-            </article>
-            <article class="content-item">
-                <img class="experience-image" src="/static/image/focusbud.jpg" alt="FocusBuddy productivity platform">
-                <div>
-                    <h2>Hackathon 2026 Winner - FocusBuddy</h2>
-                    <p>As software engineer, built complete stack (frontend, backend, Google Auth) and designed AI/ML pipeline for task decomposition, duration prediction, and personalized recommendations. Delivered production-ready solution in six days.</p>
-                </div>
-            </article>
+            {% for experience in experience_list %}
+                <article class="content-item">
+                    {% if experience.thumbnail %}
+                        <img class="experience-image" src="{{ experience.thumbnail }}" alt="{{ experience.title }}">
+                    {% endif %}
+                    <div>
+                        <p class="content-item-label">{{ experience.get_category_display }}</p>
+                        <h2>{{ experience.title }}</h2>
+                        <p>{{ experience.description }}</p>
+                        <p class="experience-status">
+                            {% if experience.is_ongoing %}
+                                Ongoing since {{ experience.started_at|date:"F Y" }}
+                            {% else %}
+                                {{ experience.started_at|date:"F Y" }} - {{ experience.ended_at|date:"F Y" }}
+                            {% endif %}
+                        </p>
+                    </div>
+                </article>
+            {% empty %}
+                <p class="empty-state">No experience has been added yet.</p>
+            {% endfor %}
         </section>
     </main>
     <footer class="site-footer">

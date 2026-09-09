@@ -12,11 +12,11 @@
 <body>
     <header class="site-header">
         <div class="container">
-            <a href="/" class="brand">Noe Andrew</a>
+            <a href="{% url 'main:show_main' %}" class="brand">{{ name }}</a>
             <nav>
-                <a href="/">About</a>
-                <a class="active" href="/achievements/">Achievements</a>
-                <a href="/experience/">Experience</a>
+                <a href="{% url 'main:show_main' %}#profile">About</a>
+                <a class="active" href="{% url 'main:show_achievements' %}">Achievements</a>
+                <a href="{% url 'main:show_experience' %}">Experience</a>
             </nav>
         </div>
     </header>
