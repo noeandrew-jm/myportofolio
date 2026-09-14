@@ -5,16 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ name }} - Portofolio{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=white-20260914">
+    <script src="{% static 'js/liquid-glass.js' %}" defer></script>
 </head>
 <body>
     <header class="site-header">
         <div class="container">
             <a href="{% url 'main:show_main' %}" class="brand">{{ name }}</a>
             <nav aria-label="Main navigation">
-                <a href="{% url 'main:show_main' %}#profile"{% if active_page == 'about' %} class="active" aria-current="page"{% endif %}>About</a>
-                <a href="{% url 'main:show_achievements' %}"{% if active_page == 'achievements' %} class="active" aria-current="page"{% endif %}>Achievements</a>
-                <a href="{% url 'main:show_experience' %}"{% if active_page == 'experience' %} class="active" aria-current="page"{% endif %}>Experience</a>
+                <a href="{% url 'main:show_main' %}#profile" class="glass-button{% if active_page == 'about' %} active{% endif %}"{% if active_page == 'about' %} aria-current="page"{% endif %}><span class="glass-button__label">About</span></a>
+                <a href="{% url 'main:show_achievements' %}" class="glass-button{% if active_page == 'achievements' %} active{% endif %}"{% if active_page == 'achievements' %} aria-current="page"{% endif %}><span class="glass-button__label">Achievements</span></a>
+                <a href="{% url 'main:show_experience' %}" class="glass-button{% if active_page == 'experience' %} active{% endif %}"{% if active_page == 'experience' %} aria-current="page"{% endif %}><span class="glass-button__label">Experience</span></a>
             </nav>
         </div>
     </header>

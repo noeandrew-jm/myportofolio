@@ -1,0 +1,16 @@
+{
+  "name": "noe-portfolio-ui",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local browser bundle for the portfolio's Liquid Glass buttons",
+  "scripts": {
+    "build": "node frontend/build.mjs"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1"
+  }
+}

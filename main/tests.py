@@ -1,3 +1,4 @@
+from django.contrib.staticfiles import finders
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -83,6 +84,17 @@ class MainTest(TestCase):
                 self.assertContains(response, 'class="site-footer"', count=1)
                 for destination in ("show_main", "show_experience", "show_achievements"):
                     self.assertContains(response, f'href="{reverse(f"main:{destination}")}"')
+
+
+    def test_liquid_glass_assets_and_button_labels(self):
+        self.assertIsNotNone(finders.find("js/liquid-glass.js"))
+        for route, button_count in (("show_main", 6), ("show_experience", 3), ("show_achievements", 3)):
+            with self.subTest(route=route):
+                response = self.client.get(reverse(f"main:{route}"))
+                self.assertContains(response, 'src="/static/js/liquid-glass.js" defer', count=1)
+                self.assertContains(response, 'class="glass-button__label"', count=button_count)
+                # Effects must not replace the links or hide their accessible labels.
+                self.assertNotContains(response, 'class="glass-button__label" aria-hidden')
 
 
 class AchievementTest(TestCase):

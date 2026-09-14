@@ -14,3 +14,7 @@ __pycache__/
 .vscode/*
 !.vscode/settings.json
 .idea/
+
+# Local frontend build dependencies (the browser bundle is kept in static/js)
+node_modules/
+npm-debug.log*
