@@ -1,55 +1,31 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Achievements - Noe Andrew</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body>
-    <header class="site-header">
-        <div class="container">
-            <a href="{% url 'main:show_main' %}" class="brand">{{ name }}</a>
-            <nav>
-                <a href="{% url 'main:show_main' %}#profile">About</a>
-                <a class="active" href="{% url 'main:show_achievements' %}">Achievements</a>
-                <a href="{% url 'main:show_experience' %}">Experience</a>
-            </nav>
-        </div>
-    </header>
-    <main>
-        <section class="page-intro">
-            <div class="container">
-                <p class="hero-kicker">Selected milestones</p>
-                <h1>Achievements</h1>
-                <p>A snapshot of competitions, projects, and moments that have shaped how I build and collaborate.</p>
+{% extends 'base.html' %}
+
+{% block title %}Achievements - {{ name }}{% endblock %}
+
+{% block content %}
+<section class="page-intro">
+    <div class="container">
+        <p class="hero-kicker">Selected milestones</p>
+        <h1>Achievements</h1>
+        <p>A snapshot of competitions, projects, and moments that have shaped how I build and collaborate.</p>
+    </div>
+</section>
+<section class="container content-list" aria-label="Achievements">
+    {% for achievement in achievement_list %}
+        <article class="content-item{% if not achievement.thumbnail %} content-item--text-only{% endif %}">
+            {% if achievement.thumbnail %}
+                <img class="achievement-image" src="{{ achievement.thumbnail }}" alt="{{ achievement.title }}">
+            {% endif %}
+            <div>
+                {% if achievement.award %}
+                    <p class="content-item-label">{{ achievement.award }}</p>
+                {% endif %}
+                <h2>{{ achievement.title }}</h2>
+                <p>{{ achievement.description }}</p>
             </div>
-        </section>
-        <section class="container content-list">
-            <article class="content-item">
-                <img class="achievement-image" src="/static/image/RISTEK%20HACKATHON.jpeg" alt="RISTEK Hackathon 2026">
-                <div>
-                    <h2>RISTEK Hackathon 2026 Winner - FocusBuddy &amp; Best Exhibition</h2>
-                    <p>Won RISTEK Hackathon 2026 with FocusBuddy, an AI-powered productivity platform. As software engineer, built complete stack (frontend, backend, Google Auth) and designed AI/ML pipeline for task decomposition, duration prediction, and personalized recommendations. Delivered production-ready solution in six days.</p>
-                </div>
-            </article>
-            <article class="content-item">
-                <img class="achievement-image" src="/static/image/PKM.jpeg" alt="PKM GFT Universitas Indonesia">
-                <div>
-                    <span class="content-item-label">Third Place Winner</span>
-                    <h2>PKM - GFT Universitas Indonesia</h2>
-                    <p>Won third place for IoT-enabled algae cultivation system addressing indoor oxygen deficiency. Designed integrated solution combining natural oxygen generation through algae with smart sensor network for automated oxygen distribution across building zones. Focused on sustainable, cost-effective air quality management for under-resourced environments.</p>
-                </div>
-            </article>
-        </section>
-    </main>
-    <footer class="site-footer">
-        <div class="container">
-            <p>&copy; 2026 Noe Andrew. Fakultas Ilmu Komputer, Universitas Indonesia.</p>
-        </div>
-    </footer>
-</body>
-</html>
+        </article>
+    {% empty %}
+        <p class="empty-state">No achievements have been added yet.</p>
+    {% endfor %}
+</section>
+{% endblock %}

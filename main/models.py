@@ -1,5 +1,7 @@
 import uuid
+
 from django.db import models
+
 
 class Experience(models.Model):
     EXPERIENCE_CHOICES = [
@@ -24,3 +26,22 @@ class Experience(models.Model):
     @property
     def is_ongoing(self):
         return self.ended_at is None
+
+
+class Achievement(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    award = models.CharField(max_length=100, blank=True)
+    thumbnail = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Image URL or local static path, for example /static/image/PKM.jpeg.",
+    )
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["display_order", "title", "id"]
+
+    def __str__(self):
+        return self.title

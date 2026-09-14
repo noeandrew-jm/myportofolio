@@ -1,61 +1,36 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Experience - {{ name }}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body>
-    <header class="site-header">
-        <div class="container">
-            <a href="{% url 'main:show_main' %}" class="brand">{{ name }}</a>
-            <nav>
-                <a href="{% url 'main:show_main' %}#profile">About</a>
-                <a href="{% url 'main:show_achievements' %}">Achievements</a>
-                <a class="active" href="{% url 'main:show_experience' %}">Experience</a>
-            </nav>
-        </div>
-    </header>
-    <main>
-        <section class="page-intro">
-            <div class="container">
-                <p class="hero-kicker">What I have been working on</p>
-                <h1>Experience</h1>
-                <p>My growing path across software engineering, fintech, and student-led collaboration.</p>
-            </div>
-        </section>
-        <section class="container content-list">
-            {% for experience in experience_list %}
-                <article class="content-item">
-                    {% if experience.thumbnail %}
-                        <img class="experience-image" src="{{ experience.thumbnail }}" alt="{{ experience.title }}">
+{% extends 'base.html' %}
+
+{% block title %}Experience - {{ name }}{% endblock %}
+
+{% block content %}
+<section class="page-intro">
+    <div class="container">
+        <p class="hero-kicker">What I have been working on</p>
+        <h1>Experience</h1>
+        <p>My growing path across software engineering, fintech, and student-led collaboration.</p>
+    </div>
+</section>
+<section class="container content-list" aria-label="Experience">
+    {% for experience in experience_list %}
+        <article class="content-item{% if not experience.thumbnail %} content-item--text-only{% endif %}">
+            {% if experience.thumbnail %}
+                <img class="experience-image" src="{{ experience.thumbnail }}" alt="{{ experience.title }}">
+            {% endif %}
+            <div>
+                <p class="content-item-label">{{ experience.get_category_display }}</p>
+                <h2>{{ experience.title }}</h2>
+                <p>{{ experience.description }}</p>
+                <p class="experience-status">
+                    {% if experience.is_ongoing %}
+                        Ongoing since {{ experience.started_at|date:"F Y" }}
+                    {% else %}
+                        Completed: {{ experience.started_at|date:"F Y" }} - {{ experience.ended_at|date:"F Y" }}
                     {% endif %}
-                    <div>
-                        <p class="content-item-label">{{ experience.get_category_display }}</p>
-                        <h2>{{ experience.title }}</h2>
-                        <p>{{ experience.description }}</p>
-                        <p class="experience-status">
-                            {% if experience.is_ongoing %}
-                                Ongoing since {{ experience.started_at|date:"F Y" }}
-                            {% else %}
-                                {{ experience.started_at|date:"F Y" }} - {{ experience.ended_at|date:"F Y" }}
-                            {% endif %}
-                        </p>
-                    </div>
-                </article>
-            {% empty %}
-                <p class="empty-state">No experience has been added yet.</p>
-            {% endfor %}
-        </section>
-    </main>
-    <footer class="site-footer">
-        <div class="container">
-            <p>&copy; 2026 Noe Andrew. Fakultas Ilmu Komputer, Universitas Indonesia.</p>
-        </div>
-    </footer>
-</body>
-</html>
+                </p>
+            </div>
+        </article>
+    {% empty %}
+        <p class="empty-state">No experience has been added yet.</p>
+    {% endfor %}
+</section>
+{% endblock %}

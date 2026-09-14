@@ -30,6 +30,7 @@ body {
     background-size: cover;
     background-attachment: fixed;
     line-height: 1.6;
+    overflow-wrap: anywhere;
 }
 
 h1, h2, h3, .brand {
@@ -96,7 +97,7 @@ h1, h2, h3, .brand {
 
 .hero-grid {
     display: grid;
-    grid-template-columns: 1.3fr 1fr;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
     grid-template-areas:
         "identity photo"
         "details  photo";
@@ -133,6 +134,7 @@ h1, h2, h3, .brand {
 
 .meta-list {
     display: flex;
+    flex-wrap: wrap;
     gap: 2rem;
     margin-bottom: 1.5rem;
 }
@@ -255,7 +257,7 @@ h1, h2, h3, .brand {
 }
 
 .page-intro h1 {
-    font-size: clamp(2.75rem, 7vw, 5rem);
+    font-size: clamp(2rem, 7vw, 5rem);
     line-height: 1;
 }
 
@@ -274,10 +276,24 @@ h1, h2, h3, .brand {
 
 .content-item {
     display: grid;
-    grid-template-columns: 180px 1fr;
+    grid-template-columns: 180px minmax(0, 1fr);
     gap: 2rem;
     padding: 2rem 0;
     border-bottom: 1px solid var(--line);
+}
+
+.content-item--text-only {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.experience-status {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+}
+
+.empty-state {
+    padding: 2rem 0;
+    color: var(--text-muted);
 }
 
 .achievement-image {

@@ -1,87 +1,61 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ name }} - Portofolio</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body>
-    <header class="site-header">
-        <div class="container">
-            <a href="{% url 'main:show_main' %}" class="brand">{{ name }}</a>
-            <nav>
-                <a class="active" href="{% url 'main:show_main' %}#profile">About</a>
-                <a href="{% url 'main:show_achievements' %}">Achievements</a>
-                <a href="{% url 'main:show_experience' %}">Experience</a>
-            </nav>
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<section class="hero" id="profile">
+    <div class="container hero-grid">
+        <div class="hero-identity">
+            <p class="hero-kicker">Information Systems &middot; Universitas Indonesia</p>
+            <h1>{{ name }}</h1>
         </div>
-    </header>
-
-    <main>
-        <section class="hero" id="profile">
-            <div class="container hero-grid">
-                <div class="hero-identity">
-                    <p class="hero-kicker">Computer Science &middot; Universitas Indonesia</p>
-                    <h1>{{ name }}</h1>
-                </div>
-                <div class="hero-photo">
-                    <div class="photo-block"></div>
-                    <img class="avatar" src="/static/image/NoeAndrew_Formal%20Photo.jpg" alt="Photo of {{ name }}">
-                </div>
-                <div class="hero-details">
-                    <p class="bio">{{ bio }}</p>
-                            <dt>NPM</dt>
-                            <dd>{{ npm }}</dd>
-                        </div>
-                        <div class="meta-row">
-                            <dt>Program</dt>
-                            <dd>{{ study_program }}</dd>
-                        </div>
-                    </dl>
-                    <div class="social-links">
-                        <a href="https://github.com/noeandrew-jm" class="social-link">GitHub</a>
-                        <a href="https://linkedin.com/Noe Andrew JM Silalahi" class="social-link">LinkedIn</a>
-                        <a href="noeandrewjms@gmail.com" class="social-link">Email</a>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="about-sections" id="focus-areas">
-            <div class="container">
-                <div class="section-heading">
-                    <p class="hero-kicker">What I bring</p>
-                    <h2>Focus areas</h2>
-                </div>
-                <div class="focus-grid">
-                    <article class="focus-item">
-                        <span class="focus-number">01</span>
-                        <h3>Software engineering</h3>
-                        <p>Building responsive interfaces, reliable backend systems, and secure authentication flows for useful digital products.</p>
-                    </article>
-                    <article class="focus-item">
-                        <span class="focus-number">02</span>
-                        <h3>AI and fintech</h3>
-                        <p>Exploring AI-powered productivity tools and fintech ideas through practical product development and thoughtful system design.</p>
-                    </article>
-                    <article class="focus-item">
-                        <span class="focus-number">03</span>
-                        <h3>Team collaboration</h3>
-                        <p>Working across technical and creative teams to turn early ideas into clear, usable, and production-ready outcomes.</p>
-                    </article>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer class="site-footer">
-        <div class="container">
-            <p>&copy; 2026 {{ name }}. Fakultas Ilmu Komputer, Universitas Indonesia.</p>
+        <div class="hero-photo">
+            <div class="photo-block" aria-hidden="true"></div>
+            <img class="avatar" src="{% static 'image/NoeAndrew_Formal Photo.jpg' %}" alt="Photo of {{ name }}">
         </div>
-    </footer>
-</body>
-</html>
+        <div class="hero-details">
+            <p class="bio">{{ bio }}</p>
+            <dl class="meta-list">
+                <div class="meta-row">
+                    <dt>NPM</dt>
+                    <dd>{{ npm }}</dd>
+                </div>
+                <div class="meta-row">
+                    <dt>Program</dt>
+                    <dd>{{ study_program }}</dd>
+                </div>
+            </dl>
+            <div class="social-links">
+                <a href="https://github.com/noeandrew-jm" class="social-link">GitHub</a>
+                <a href="https://www.linkedin.com/in/noeandrew" class="social-link">LinkedIn</a>
+                <a href="mailto:noeandrewjms@gmail.com" class="social-link">Email</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="about-sections" id="focus-areas">
+    <div class="container">
+        <div class="section-heading">
+            <p class="hero-kicker">What I bring</p>
+            <h2>Focus areas</h2>
+        </div>
+        <div class="focus-grid">
+            <article class="focus-item">
+                <span class="focus-number">01</span>
+                <h3>Software engineering</h3>
+                <p>Building responsive interfaces, reliable backend systems, and secure authentication flows for useful digital products.</p>
+            </article>
+            <article class="focus-item">
+                <span class="focus-number">02</span>
+                <h3>AI and fintech</h3>
+                <p>Exploring AI-powered productivity tools and fintech ideas through practical product development and thoughtful system design.</p>
+            </article>
+            <article class="focus-item">
+                <span class="focus-number">03</span>
+                <h3>Team collaboration</h3>
+                <p>Working across technical and creative teams to turn early ideas into clear, usable, and production-ready outcomes.</p>
+            </article>
+        </div>
+    </div>
+</section>
+{% endblock %}
