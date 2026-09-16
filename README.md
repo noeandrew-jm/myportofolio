@@ -1,6 +1,6 @@
 # Portofolio Noe Andrew
 
-Website portofolio pribadi untuk Proyek Individu PBP, dibangun bertahap menggunakan Django 5.2, HTML5, dan CSS3. Profil dan tiga focus areas ada di halaman utama; pengalaman dan prestasi ditampilkan dari database pada halaman terpisah.
+Website portofolio pribadi untuk Proyek Individu PBP, dibangun bertahap menggunakan Django 5.2, HTML5, dan CSS3. Profil dan tiga focus areas ada di halaman utama; pengalaman, prestasi, dan proyek ditampilkan dari database pada halaman terpisah.
 
 Nama : Noe Andrew JM Silalahi
 
@@ -44,7 +44,12 @@ Buka <http://127.0.0.1:8000/>. Biarkan terminal server tetap berjalan; tekan `Ct
 | `/` | Profil, kontak, dan tiga focus areas | Context profil di `main/views.py`; focus areas statis |
 | `/experience/` | Daftar pengalaman, kategori, dan status | Model `Experience` |
 | `/achievements/` | Daftar prestasi, penghargaan, dan gambar | Model `Achievement` |
-| `/admin/` | Pengelolaan pengalaman dan prestasi | Django admin; perlu login |
+| `/projects/` | Daftar proyek dan pencarian `?title=...` | Model `Project`, melalui serialisasi/deserialisasi JSON |
+| `/projects/add/` | Form tambah proyek | `ProjectForm` dengan validasi dan CSRF |
+| `/projects/<uuid>/delete/` | Hapus proyek lewat konfirmasi | POST dengan CSRF; GET tidak menghapus |
+| `/api/projects/` | Data proyek berformat JSON, filter `?title=...` | Django serializer |
+| `/api/projects/xml/` | Percobaan format XML, filter `?title=...` | Django serializer |
+| `/admin/` | Pengelolaan pengalaman, prestasi, dan proyek | Django admin; perlu login |
 
 `migrate` membuat tabel dan memasukkan dua pengalaman serta dua prestasi awal dari konten portofolio yang sudah ada. Migrasi data hanya dijalankan sekali; perubahan selanjutnya bisa dilakukan melalui admin. Database lokal tidak disertakan di Git.
 
@@ -56,7 +61,33 @@ Untuk membuat akun admin milik sendiri:
 
 Model `Achievement` memiliki UUID sebagai primary key, serta `title`, `description`, `award`, `thumbnail`, dan `display_order`. `thumbnail` memakai `CharField` karena menyimpan alamat gambar, termasuk path lokal seperti `/static/image/PKM.jpeg`; field ini bukan upload berkas. `award` dan `thumbnail` boleh kosong. Urutan tampilan mengikuti `display_order`, lalu judul dan ID.
 
-`templates/base.html` memuat kerangka HTML, CSS, navbar, dan footer bersama. Isi tiap halaman ada di `index.html`, `experience.html`, dan `achievements.html`. Gaya visual tetap berada di `static/css/style.css`.
+`templates/base.html` memuat kerangka HTML, CSS, navbar, pesan Django, dan footer bersama. Isi tiap halaman ada di `index.html`, `experience.html`, `achievements.html`, `project.html`, dan `projects_form.html`. Template turunan menggunakan `block title` untuk satu judul dokumen, `block meta` untuk metadata tambahan, dan `block content` untuk konten utama. Gaya visual tetap berada di `static/css/style.css`.
+
+## Tutorial form dan data delivery
+
+Implementasi melanjutkan `ProjectForm` yang sudah mulai dibuat pada proyek ini dengan menambahkan model `Project`, migrasi `0005_project`, serta halaman Projects. `Achievement` dari Tugas 2 dan data prestasi sebelumnya tetap tersedia. Model Project menggunakan UUID serta field `title`, `description`, `tech_stack`, `project_url`, dan `project_image_url`; kedua URL opsional. Proyek baru tidak diisi dengan contoh fiktif dari tutorial. Masukkan judul, deskripsi, teknologi, dan tautan proyek milik sendiri melalui **Projects → Tambah Proyek**.
+
+Form menampilkan error tanpa menghilangkan input. Setelah berhasil menyimpan, halaman Projects menampilkan pesan sukses. Pencarian judul memangkas spasi awal/akhir dan tidak membedakan kapitalisasi. Tombol **Hapus Proyek** membuka konfirmasi; Batal, tombol tutup, klik latar, atau Escape tidak menghapus data. Hanya tombol **Ya, Hapus** yang mengirim POST dengan token CSRF. Konfirmasi menggunakan Popover API pada browser modern.
+
+Sesuai latihan tutorial, `show_projects` memanggil `get_projects_json`, kemudian melakukan `serializers.deserialize` sebelum merender HTML. Ini demonstrasi alur data; belum ada request HTTP terpisah atau JavaScript fetch. Endpoint XML disediakan terpisah agar percobaan format XML tidak memutus alur JSON pada halaman Projects.
+
+Untuk memeriksa data lewat browser atau Postman, buat proyek lewat form, kemudian gunakan GET:
+
+```text
+http://127.0.0.1:8000/api/projects/
+http://127.0.0.1:8000/api/projects/?title=portfolio
+http://127.0.0.1:8000/api/projects/xml/?title=portfolio
+```
+
+JSON berbentuk daftar objek Django dengan `model`, `pk`, dan `fields`. Database kosong menghasilkan `[]`; judul tanpa hasil tidak menyebabkan error. Endpoint API ini hanya membaca data.
+
+URL gambar boleh memakai URL publik langsung. Jika memakai Google Drive, unggah gambar milik sendiri, atur **Anyone with the link → Viewer**, ambil ID berkas, kemudian isi field URL Gambar Proyek dengan `https://drive.google.com/thumbnail?id=FILE_ID&sz=w1000`. Form menyimpan URL, bukan mengunggah berkas. Akses dan keberhasilan pemuatan gambar eksternal bergantung pada penyedia gambar.
+
+Konfigurasi `CSRF_TRUSTED_ORIGINS` sudah memakai `https://noe-andrew-myportofolio.pws.cs.ui.ac.id` tanpa slash penutup. Origin terdiri dari skema dan host, bukan path halaman; lihat [pengaturan CSRF Django](https://docs.djangoproject.com/en/5.2/ref/settings/#csrf-trusted-origins). Token CSRF tetap diwajibkan pada semua form POST.
+
+Seperti tahap tutorial, form publik ini belum memakai autentikasi pemilik: pengunjung dapat menambah dan menghapus proyek melalui form. Tip kode rahasia `.env`/header/password pada akhir tutorial bersifat opsional dan belum diaktifkan; CSRF sendiri bukan pembatas akses pemilik.
+
+Yang masih membutuhkan tindakan pemilik: isi proyek dan gambar pribadi, unggah/atur berbagi Google Drive bila digunakan, deploy perubahan ke PWS serta periksa Logs dan migrasi di sana, dan kumpulkan bukti/tugas pada platform kuliah bila diminta. Pengujian lokal tidak memverifikasi deployment atau pengumpulan.
 
 ## Pengujian
 
@@ -66,9 +97,9 @@ Model `Achievement` memiliki UUID sebagai primary key, serta `title`, `descripti
 .\env\Scripts\python.exe manage.py test --verbosity 2
 ```
 
-Suite berisi 14 tes: profil dan kontak, navigasi bersama, URL tidak ditemukan, model dan status pengalaman, kondisi kosong, serta halaman prestasi. Tes prestasi mencakup URL/template, beberapa objek dari database, kondisi kosong, field opsional, pembaruan data, dan HTML escaping. Tes menggunakan database pengujian tersendiri; pembersihan data seed dalam tes tidak menghapus data portofolio lokal.
+Suite berisi 43 tes: profil dan kontak, navigasi bersama, URL tidak ditemukan, model/status pengalaman, prestasi, serta Projects. Tes Projects mencakup validasi dan batas panjang field, POST kosong/invalid, tambah dan hapus, pencarian, serialisasi/deserialisasi JSON, XML, kondisi kosong, escaping, pesan sukses, dan CSRF dengan origin PWS maupun origin tidak tepercaya. Tes menggunakan database pengujian tersendiri; pembersihan data seed dalam tes tidak menghapus data portofolio lokal.
 
-Saat mengubah teks antarmuka, sesuaikan ekspektasi tes dengan perilaku yang dimaksud. Antarmuka halaman ini berbahasa Inggris. Data seed perlu diisolasi agar tes pengalaman selesai tidak ikut membaca pengalaman lain yang masih berlangsung.
+Saat mengubah teks antarmuka, sesuaikan ekspektasi tes dengan perilaku yang dimaksud. Halaman profil menggunakan bahasa Inggris; form dan aksi Projects mengikuti bahasa Indonesia pada tutorial. Data seed perlu diisolasi agar tes pengalaman selesai tidak ikut membaca pengalaman lain yang masih berlangsung.
 
 ## Perkembangan mingguan
 
@@ -77,6 +108,7 @@ Saat mengubah teks antarmuka, sesuaikan ekspektasi tes dengan perilaku yang dima
 | Tutorial 1 / Tugas 1 | Profil pribadi, tiga focus areas, CSS responsif, dan refleksi Tugas 1 |
 | Tutorial 2 | Aplikasi `main`, model `Experience`, migrasi, context profil, routing, dan pengujian |
 | Tugas 2 | Model `Achievement`, migrasi struktur dan data awal, halaman dinamis, admin, pengujian, dan template bersama |
+| Tutorial form dan data delivery | Model/form `Project`, tambah/cari/hapus, JSON/XML, konfirmasi, pesan sukses, dan CSRF |
 
 Saat mengambil perubahan Tugas 2 dari Git, jalankan ulang instalasi dependency bila `requirements.txt` berubah, kemudian `migrate` dan `collectstatic --noinput` sebelum menyalakan server. Tidak perlu membuat migrasi baru hanya untuk menambahkan objek melalui admin.
 

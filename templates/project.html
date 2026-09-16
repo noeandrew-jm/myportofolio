@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Projects - {{ name }}{% endblock title %}
+{% block content %}
+<main>
+    <section class="page-intro">
+        <div class="container">
+            <p class="hero-kicker">Karya yang saya bangun</p>
+            <div class="project-header">
+                <h1>Projects</h1>
+                <a href="{% url 'main:create_project' %}" class="button project-add-button">
+                    <span aria-hidden="true">+</span> Tambah Proyek
+                </a>
+            </div>
+        </div>
+    </section>
+    <section class="container projects-section" aria-label="Daftar proyek">
+        <form method="get" action="{% url 'main:show_projects' %}" class="project-search" role="search">
+            <input type="search" name="title" value="{{ title_query }}"
+                   placeholder="Cari berdasarkan nama proyek" class="project-search__input"
+                   aria-label="Cari berdasarkan nama proyek">
+            <button type="submit" class="button">Cari</button>
+            {% if title_query %}
+                <a href="{% url 'main:show_projects' %}" class="button button-secondary">Reset</a>
+            {% endif %}
+        </form>
+        <div class="project-grid">
+            {% for project in project_list %}
+                <article class="project-card">
+                    {% if project.project_image_url %}
+                        <img src="{{ project.project_image_url }}" alt="Gambar {{ project.title }}"
+                             class="project-image" loading="lazy">
+                    {% endif %}
+                    <h2>{{ project.title }}</h2>
+                    <p class="content-item-label">{{ project.tech_stack }}</p>
+                    <p class="project-description">{{ project.description }}</p>
+                    <div class="project-card-actions">
+                        {% if project.project_url %}
+                            <a href="{{ project.project_url }}" class="button">Lihat Proyek</a>
+                        {% endif %}
+                        {% include "components/project_delete_modal.html" with project=project %}
+                    </div>
+                </article>
+            {% empty %}
+                {% if title_query %}
+                    <p class="empty-state">Tidak ada proyek dengan nama tersebut.</p>
+                {% else %}
+                    <p class="empty-state">Belum ada proyek yang ditambahkan.</p>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+</main>
+{% endblock content %}

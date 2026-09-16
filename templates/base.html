@@ -4,9 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <title>{% block title %}{{ name }} - Portofolio{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=white-20260914">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=forms-20260916">
     <script src="{% static 'js/liquid-glass.js' %}" defer></script>
+    {% block meta %} {% endblock meta %}
 </head>
 <body>
     <header class="site-header">
@@ -16,12 +20,18 @@
                 <a href="{% url 'main:show_main' %}#profile" class="glass-button{% if active_page == 'about' %} active{% endif %}"{% if active_page == 'about' %} aria-current="page"{% endif %}><span class="glass-button__label">About</span></a>
                 <a href="{% url 'main:show_achievements' %}" class="glass-button{% if active_page == 'achievements' %} active{% endif %}"{% if active_page == 'achievements' %} aria-current="page"{% endif %}><span class="glass-button__label">Achievements</span></a>
                 <a href="{% url 'main:show_experience' %}" class="glass-button{% if active_page == 'experience' %} active{% endif %}"{% if active_page == 'experience' %} aria-current="page"{% endif %}><span class="glass-button__label">Experience</span></a>
+                <a href="{% url 'main:show_projects' %}" class="glass-button{% if active_page == 'projects' %} active{% endif %}"{% if active_page == 'projects' %} aria-current="page"{% endif %}><span class="glass-button__label">Projects</span></a>
             </nav>
         </div>
     </header>
-    <main>
-        {% block content %}{% endblock %}
-    </main>
+    {% if messages %}
+        <div class="container site-messages" role="status" aria-live="polite">
+            {% for message in messages %}
+                <p class="site-message{% if message.tags %} site-message--{{ message.tags }}{% endif %}">{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+    {% block content %}{% endblock content %}
     <footer class="site-footer">
         <div class="container">
             <p>&copy; 2026 {{ name }}. Fakultas Ilmu Komputer, Universitas Indonesia.</p>

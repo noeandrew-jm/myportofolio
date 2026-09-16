@@ -74,7 +74,7 @@ class MainTest(TestCase):
         self.assertContains(response, '<dl class="meta-list">')
 
     def test_all_public_pages_share_layout_and_navigation(self):
-        for route in ("show_main", "show_experience", "show_achievements"):
+        for route in ("show_main", "show_experience", "show_achievements", "show_projects", "create_project"):
             with self.subTest(route=route):
                 response = self.client.get(reverse(f"main:{route}"))
                 self.assertEqual(response.status_code, 200)
@@ -82,13 +82,13 @@ class MainTest(TestCase):
                 self.assertContains(response, 'aria-current="page"', count=1)
                 self.assertContains(response, 'class="site-header"', count=1)
                 self.assertContains(response, 'class="site-footer"', count=1)
-                for destination in ("show_main", "show_experience", "show_achievements"):
+                for destination in ("show_main", "show_experience", "show_achievements", "show_projects"):
                     self.assertContains(response, f'href="{reverse(f"main:{destination}")}"')
 
 
     def test_liquid_glass_assets_and_button_labels(self):
         self.assertIsNotNone(finders.find("js/liquid-glass.js"))
-        for route, button_count in (("show_main", 6), ("show_experience", 3), ("show_achievements", 3)):
+        for route, button_count in (("show_main", 7), ("show_experience", 4), ("show_achievements", 4), ("show_projects", 4), ("create_project", 4)):
             with self.subTest(route=route):
                 response = self.client.get(reverse(f"main:{route}"))
                 self.assertContains(response, 'src="/static/js/liquid-glass.js" defer', count=1)
