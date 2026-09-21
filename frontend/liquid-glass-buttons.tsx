@@ -78,7 +78,7 @@ function GlassButtonEffect({ button }: { button: HTMLElement }) {
     <LiquidGlass
       className="liquid-glass-layer"
       mode="standard"
-      overLight
+      overLight={false}
       displacementScale={48}
       blurAmount={0.065}
       saturation={135}
@@ -95,7 +95,9 @@ function GlassButtonEffect({ button }: { button: HTMLElement }) {
   );
 }
 
-document.querySelectorAll<HTMLElement>(".glass-button").forEach((button, index) => {
+// Navigation glass stays exclusive to the active page. The three profile
+// contact links opt into the same decorative effect independently.
+document.querySelectorAll<HTMLElement>('.nav-group .glass-button[aria-current="page"], .profile-contact-link.glass-button').forEach((button, index) => {
   const effect = document.createElement("div");
   effect.className = "glass-button__effect";
   effect.setAttribute("aria-hidden", "true");

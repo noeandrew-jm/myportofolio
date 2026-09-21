@@ -1,0 +1,335 @@
+﻿/* Compiled with a tw- prefix and no preflight to leave Django pages untouched. */
+@tailwind utilities;
+
+.about-hero {
+  isolation: isolate;
+  min-height: 100svh;
+  overflow: clip;
+  background: #0c0c0c;
+  color: #d7e2ea;
+  font-family: "Kanit", sans-serif;
+  scroll-margin-top: 1rem;
+}
+
+#about-app { width: 100%; }
+
+.about-heading {
+  font-family: "Kanit", sans-serif;
+  font-size: clamp(2rem, 10.25vw, 138px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.045em;
+  white-space: nowrap;
+}
+
+.hero-heading {
+  background: linear-gradient(180deg, #646973 0%, #bbccd7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.about-bio {
+  color: #d7e2ea;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  overflow-wrap: normal;
+}
+
+.about-word { display: inline-block; white-space: nowrap; }
+.about-character { position: relative; display: inline-block; }
+.about-character__space { visibility: hidden; }
+.about-character__visible { position: absolute; top: 0; left: 0; }
+
+.about-decoration {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.about-decoration img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.about-decoration--moon { top: 4%; left: 1%; width: 120px; }
+.about-decoration--object { bottom: 8%; left: 3%; width: 100px; }
+.about-decoration--lego { top: 4%; right: 1%; width: 120px; }
+.about-decoration--group { bottom: 8%; right: 3%; width: 130px; }
+
+.about-contact-button {
+  min-height: 48px;
+  color: #fff;
+  text-decoration: none;
+  background: linear-gradient(123deg, #18011f 7%, #b600a8 37%, #7621b0 72%, #be4c00 100%);
+  box-shadow: 0 4px 4px rgba(181, 1, 167, 0.25), 4px 4px 12px #7721b1 inset;
+  outline: 2px solid #e3e3e3;
+  outline-offset: -3px;
+  transition: opacity 200ms ease;
+}
+
+.about-contact-button:hover { opacity: 0.9; }
+.about-contact-button:active { opacity: 0.75; }
+.about-contact-button:focus-visible { outline: 2px solid #fff; outline-offset: 5px; }
+
+.profile-section {
+  --profile-ink: #e0ddf5;
+  --profile-muted: #aaa8c4;
+  --profile-line: #353047;
+  padding: 2rem 0 0;
+  border-top: 1px solid var(--profile-line);
+  color: var(--profile-ink);
+  background:
+    radial-gradient(ellipse at 18% 42%, #354eb025, transparent 45%),
+    radial-gradient(ellipse at 82% 48%, #b3319d20, transparent 44%),
+    radial-gradient(ellipse at 50% 70%, #682aa52b, transparent 55%),
+    #0c0c0c;
+  scroll-margin-top: 1rem;
+}
+
+.profile-editorial { max-width: 1440px; }
+
+.profile-masthead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  color: var(--profile-muted);
+  font-size: 0.65rem;
+  font-weight: 300;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+}
+.profile-masthead span { padding: 0 0.45rem; }
+
+.profile-stage {
+  position: relative;
+  isolation: isolate;
+  min-height: clamp(620px, 55vw, 780px);
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 75%, #64409626, transparent 58%);
+}
+
+.profile-wordmark {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 0;
+  margin: 0;
+  font-weight: 400;
+  line-height: 1;
+  user-select: none;
+}
+.profile-wordmark svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.profile-wordmark text {
+  fill: url(#profile-title-gradient);
+  font-family: "Bodoni Moda", "Times New Roman", serif;
+  font-size: 250px;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+}
+
+.profile-portrait {
+  position: absolute;
+  top: 4.5rem;
+  bottom: 0;
+  left: 50%;
+  z-index: 1;
+  width: min(72%, 960px);
+  transform: translateX(-50%);
+  overflow: hidden;
+  pointer-events: none;
+}
+.profile-portrait img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+}
+
+.profile-intro, .profile-details {
+  position: absolute;
+  z-index: 2;
+  bottom: 3rem;
+}
+.profile-intro { left: 0; width: 25%; max-width: 280px; }
+.profile-overline {
+  margin-bottom: 0.9rem;
+  color: var(--profile-muted);
+  font-size: 0.6rem;
+  font-weight: 300;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+.profile-intro h3 {
+  margin-bottom: 1.15rem;
+  color: #ece6ff;
+  font-size: clamp(1.2rem, 2.2vw, 1.85rem);
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.profile-summary {
+  max-width: 245px;
+  margin-bottom: 1.5rem;
+  color: var(--profile-muted);
+  font-size: 0.875rem;
+  font-weight: 300;
+  line-height: 1.75;
+}
+.profile-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.25rem;
+  min-height: 44px;
+  border-bottom: 1px solid #8766b2;
+  color: #cfb7fa;
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.profile-text-link span { font-size: 1.1rem; }
+.profile-details { right: 0; width: 20%; max-width: 230px; padding-left: 1rem; }
+.profile-university {
+  color: #c9c4f3;
+  font-family: "Bodoni Moda", "Times New Roman", serif;
+  font-size: 1.9rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+.profile-details .meta-list { display: grid; gap: 1rem; margin: 1.5rem 0 0; }
+.profile-details .meta-row dt { color: #a299bc; font-size: 0.6rem; letter-spacing: 0.15em; }
+.profile-details .meta-row dd { color: var(--profile-ink); font-size: 0.8rem; font-weight: 300; }
+
+.profile-contact-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2.75rem 0 3rem;
+  border-top: 1px solid var(--profile-line);
+  background: radial-gradient(ellipse at 50% 50%, #7952c01a, transparent 65%);
+}
+.profile-socials {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.25rem;
+}
+.profile-contact-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  min-width: 150px;
+  padding: 0.9rem 1.7rem;
+  border-radius: 999px;
+  color: #f2eeff;
+  background: linear-gradient(125deg, #b7c6ff24, #ba8cee0c 48%, #e294d521);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+.profile-contact-link .glass-button__label { display: inline-flex; align-items: center; gap: 0.85rem; }
+.profile-contact-link .glass-button__label > span { color: #d6c2ff; }
+.profile-section a { transition: color 180ms ease; }
+.profile-section a:hover { color: #fff; }
+.profile-section a:focus-visible { outline-color: #d7bbff; }
+
+@media (min-width: 640px) and (max-width: 1000px) {
+  .profile-stage { min-height: 660px; }
+  .profile-portrait { top: 5rem; width: 90%; }
+  .profile-intro { width: 28%; }
+  .profile-details { width: 23%; padding-left: 0; }
+  .profile-summary { font-size: 0.8rem; }
+  .profile-university { font-size: 1.55rem; }
+  .profile-socials { gap: 1rem; }
+}
+@media (min-width: 640px) {
+  .about-decoration--moon { left: 2%; width: 160px; }
+  .about-decoration--object { left: 6%; width: 140px; }
+  .about-decoration--lego { right: 2%; width: 160px; }
+  .about-decoration--group { right: 6%; width: 170px; }
+}
+
+@media (min-width: 768px) {
+  .about-decoration--moon { left: 4%; width: 210px; }
+  .about-decoration--object { left: 10%; width: 180px; }
+  .about-decoration--lego { right: 4%; width: 210px; }
+  .about-decoration--group { right: 10%; width: 220px; }
+}
+
+@media (max-width: 639px) {
+  .about-hero { padding-top: 10rem; padding-bottom: 11rem; }
+  .about-decoration--moon, .about-decoration--lego { top: 1.5rem; }
+  .about-decoration--object, .about-decoration--group { bottom: 1.5rem; }
+}
+
+@media (max-width: 900px) {
+  .profile-section { padding-top: 1.5rem; }
+  .profile-masthead { font-size: 0.5rem; gap: 1.5rem; }
+  .profile-masthead p:last-child { text-align: right; }
+  .profile-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.75fr);
+    align-items: start;
+    gap: 1.5rem;
+    min-height: 0;
+    padding-top: clamp(350px, 104vw, 600px);
+    background: none;
+  }
+  .profile-wordmark { top: 1rem; }
+  .profile-portrait {
+    top: 2.5rem;
+    bottom: auto;
+    width: min(128%, 820px);
+    height: clamp(280px, 86vw, 520px);
+    mask-image: linear-gradient(#000 85%, transparent);
+    -webkit-mask-image: linear-gradient(#000 85%, transparent);
+  }
+  .profile-intro, .profile-details {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: none;
+    padding: 0 0 2rem;
+  }
+  .profile-intro h3 { font-size: 1rem; }
+  .profile-overline { font-size: 0.52rem; letter-spacing: 0.12em; }
+  .profile-summary { font-size: 0.78rem; }
+  .profile-text-link { font-size: 0.6rem; gap: 0.65rem; }
+  .profile-university { font-size: 1.4rem; }
+  .profile-details .meta-row dd { font-size: 0.7rem; }
+  .profile-contact-row { padding: 2rem 0; }
+}
+
+@media (max-width: 480px) {
+  .profile-socials { width: 100%; gap: 0.65rem; }
+  .profile-contact-link { flex: 1; min-width: 0; min-height: 48px; padding: 0.8rem 0.65rem; font-size: 0.72rem; }
+  .profile-contact-link .glass-button__label { gap: 0.45rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-character__visible { opacity: 1 !important; }
+  .about-decoration, .about-content [style] { opacity: 1 !important; transform: none !important; }
+  .about-contact-button, .profile-section a { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .hero-heading { background: none; -webkit-text-fill-color: CanvasText; color: CanvasText; }
+  .about-character__visible { opacity: 1 !important; }
+  .about-contact-button { background: ButtonFace; color: ButtonText; border: 2px solid ButtonText; box-shadow: none; }
+  .profile-wordmark text { fill: CanvasText; }
+  .profile-section a { color: LinkText; }
+}
+

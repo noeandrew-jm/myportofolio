@@ -1,3 +1,6 @@
+from html.parser import HTMLParser
+from urllib.parse import urlsplit
+
 from django.contrib.staticfiles import finders
 from django.test import TestCase
 from django.urls import reverse
@@ -5,6 +8,34 @@ from django.utils import timezone
 from django.utils.html import escape
 
 from main.models import Achievement, Experience
+
+
+class NavigationParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.navigations = []
+        self.current_navigation = None
+        self.navigation_glass_elements = []
+        self.glass_elements = []
+        self.asset_paths = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "nav":
+            self.current_navigation = []
+            self.navigations.append(self.current_navigation)
+        if tag == "a" and self.current_navigation is not None:
+            self.current_navigation.append(attrs)
+        if "glass-button" in attrs.get("class", "").split():
+            self.glass_elements.append((tag, attrs))
+            if self.current_navigation is not None:
+                self.navigation_glass_elements.append((tag, attrs))
+        if tag in ("script", "link"):
+            self.asset_paths.append(urlsplit(attrs.get("src", attrs.get("href", ""))).path)
+
+    def handle_endtag(self, tag):
+        if tag == "nav":
+            self.current_navigation = None
 
 
 class MainTest(TestCase):
@@ -72,6 +103,24 @@ class MainTest(TestCase):
         self.assertContains(response, 'href="mailto:noeandrewjms@gmail.com"')
         self.assertContains(response, 'href="https://www.linkedin.com/in/noeandrew"')
         self.assertContains(response, '<dl class="meta-list">')
+        document = NavigationParser()
+        document.feed(response.content.decode())
+        contact_links = [
+            (tag, attrs)
+            for tag, attrs in document.glass_elements
+            if "profile-contact-link" in attrs.get("class", "").split()
+        ]
+        self.assertEqual(
+            [attrs["href"] for _, attrs in contact_links],
+            [
+                "mailto:noeandrewjms@gmail.com",
+                "https://github.com/noeandrew-jm",
+                "https://www.linkedin.com/in/noeandrew",
+            ],
+        )
+        for tag, attrs in contact_links:
+            self.assertEqual(tag, "a")
+            self.assertNotIn("aria-current", attrs)
 
     def test_all_public_pages_share_layout_and_navigation(self):
         for route in ("show_main", "show_experience", "show_achievements", "show_projects", "create_project"):
@@ -86,15 +135,56 @@ class MainTest(TestCase):
                     self.assertContains(response, f'href="{reverse(f"main:{destination}")}"')
 
 
-    def test_liquid_glass_assets_and_button_labels(self):
+    def test_only_current_navigation_link_has_liquid_glass(self):
         self.assertIsNotNone(finders.find("js/liquid-glass.js"))
-        for route, button_count in (("show_main", 7), ("show_experience", 4), ("show_achievements", 4), ("show_projects", 4), ("create_project", 4)):
+        destinations = ("show_main", "show_achievements", "show_experience", "show_projects")
+        for route, active_route in (
+            ("show_main", "show_main"),
+            ("show_experience", "show_experience"),
+            ("show_achievements", "show_achievements"),
+            ("show_projects", "show_projects"),
+            ("create_project", "show_projects"),
+        ):
             with self.subTest(route=route):
                 response = self.client.get(reverse(f"main:{route}"))
-                self.assertContains(response, 'src="/static/js/liquid-glass.js" defer', count=1)
-                self.assertContains(response, 'class="glass-button__label"', count=button_count)
+                document = NavigationParser()
+                document.feed(response.content.decode())
+                self.assertEqual(len(document.navigations), 1)
+                links = document.navigations[0]
+                self.assertEqual(len(links), 4)
+                self.assertEqual(
+                    [urlsplit(link["href"]).path for link in links],
+                    [reverse(f"main:{destination}") for destination in destinations],
+                )
+                for link in links:
+                    classes = link.get("class", "").split()
+                    self.assertIn("nav-link", classes)
+                    if urlsplit(link["href"]).path == reverse(f"main:{active_route}"):
+                        self.assertIn("active", classes)
+                        self.assertIn("glass-button", classes)
+                        self.assertEqual(link.get("aria-current"), "page")
+                        self.assertEqual(document.navigation_glass_elements, [("a", link)])
+                    else:
+                        self.assertNotIn("active", classes)
+                        self.assertNotIn("glass-button", classes)
+                        self.assertNotIn("aria-current", link)
+                self.assertEqual(document.asset_paths.count("/static/js/liquid-glass.js"), 1)
+                self.assertEqual(len(document.glass_elements), 4 if route == "show_main" else 1)
+                self.assertContains(response, 'class="glass-button__label"', count=7 if route == "show_main" else 4)
                 # Effects must not replace the links or hide their accessible labels.
                 self.assertNotContains(response, 'class="glass-button__label" aria-hidden')
+
+    def test_about_page_assets_are_available(self):
+        response = self.client.get(reverse("main:show_main"))
+        document = NavigationParser()
+        document.feed(response.content.decode())
+        for asset in ("js/about.js", "css/about.css"):
+            with self.subTest(asset=asset):
+                self.assertIsNotNone(finders.find(asset))
+                self.assertIn(f"/static/{asset}", document.asset_paths)
+        for image in ("moon.png", "object.png", "lego.png", "group.png"):
+            with self.subTest(image=image):
+                self.assertIsNotNone(finders.find(f"image/about/{image}"))
 
 
 class AchievementTest(TestCase):
@@ -150,8 +240,8 @@ class AchievementTest(TestCase):
         response = self.client.get(reverse("main:show_achievements"))
 
         self.assertEqual(str(achievement), "Without an image")
+        self.assertContains(response, achievement.title)
         self.assertContains(response, achievement.description)
-        self.assertContains(response, 'class="content-item content-item--text-only"')
         self.assertNotContains(response, 'src=""')
 
     def test_changed_model_data_is_reflected_on_page(self):
