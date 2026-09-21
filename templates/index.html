@@ -2,9 +2,8 @@
 {% load static %}
 
 {% block meta %}
-<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'css/about.css' %}?v=galaxy-20260921">
-<script src="{% static 'js/about.js' %}?v=galaxy-20260921" defer></script>
+<link rel="stylesheet" href="{% static 'css/about.css' %}?v=profile-compact-v3">
+<script src="{% static 'js/about.js' %}?v=galaxy-shared-theme-20260921-2" defer></script>
 {% endblock meta %}
 
 {% block content %}
@@ -43,10 +42,9 @@
                     <span class="tw-sr-only">Portofolio</span>
                     <svg viewBox="0 0 1200 250" aria-hidden="true" focusable="false">
                         <defs>
-                            <linearGradient id="profile-title-gradient" x1="0%" y1="0%" x2="100%" y2="70%">
-                                <stop offset="0%" stop-color="#83b8f4" />
-                                <stop offset="48%" stop-color="#b9a1f5" />
-                                <stop offset="100%" stop-color="#eca4d9" />
+                            <linearGradient id="profile-title-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop class="profile-gradient-top" offset="0%" />
+                                <stop class="profile-gradient-bottom" offset="100%" />
                             </linearGradient>
                         </defs>
                         <text x="0" y="218" textLength="1200" lengthAdjust="spacingAndGlyphs">PORTOFOLIO</text>
@@ -65,17 +63,9 @@
                 </div>
 
                 <div class="profile-details">
+                    <p class="profile-study">Sistem Informasi</p>
                     <p class="profile-university">Universitas<br><span>Indonesia</span></p>
-                    <dl class="meta-list">
-                        <div class="meta-row">
-                            <dt>Program</dt>
-                            <dd>{{ study_program }}</dd>
-                        </div>
-                        <div class="meta-row">
-                            <dt>NPM</dt>
-                            <dd>{{ npm }}</dd>
-                        </div>
-                    </dl>
+                    <p class="profile-student-number">{{ npm }}</p>
                 </div>
             </div>
 

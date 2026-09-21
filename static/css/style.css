@@ -5,13 +5,18 @@
 }
 
 :root {
+    --font-sans: "Kanit", sans-serif;
     --ink: #d7e2ea;
     --paper: #0c0c0c;
     --surface: #141416;
     --accent: #a73be0;
     --accent-dark: #bba3d0;
+    --accent-blue: #83b8f4;
+    --accent-pink: #eca4d9;
     --line: #2a2a30;
     --text-muted: #a0a2ad;
+    --heading-gradient-top: #646973;
+    --heading-gradient-bottom: #bbccd7;
     --radius: 16px;
 }
 
@@ -26,7 +31,7 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    font-family: "Kanit", sans-serif;
+    font-family: var(--font-sans);
     font-weight: 400;
     color: var(--ink);
     background: var(--paper);

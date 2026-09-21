@@ -1,33 +1,42 @@
-{% extends 'base.html' %}
+{% extends 'showcase_base.html' %}
 
 {% block title %}Achievements - {{ name }}{% endblock %}
 
 {% block content %}
 <main>
-<section class="page-intro">
+<section class="page-intro showcase-intro">
     <div class="container">
         <p class="hero-kicker">Selected milestones</p>
         <h1>Achievements</h1>
         <p>A snapshot of competitions, projects, and moments that have shaped how I build and collaborate.</p>
     </div>
 </section>
-<section class="container content-list" aria-label="Achievements">
+<section class="showcase" aria-label="Achievements" data-showcase>
+    <p class="showcase-hint">Hover to pause <span aria-hidden="true">&middot;</span> Swipe to explore</p>
+    <div class="showcase-viewport" tabindex="0" aria-label="Achievement cards, scroll horizontally">
+    <div class="showcase-track">
+    <div class="showcase-group">
     {% for achievement in achievement_list %}
-        <article class="content-item{% if not achievement.thumbnail %} content-item--text-only{% endif %}">
+        <article class="showcase-card">
             {% if achievement.thumbnail %}
-                <img class="achievement-image" src="{{ achievement.thumbnail }}" alt="{{ achievement.title }}">
+                <img class="showcase-image" src="{{ achievement.thumbnail }}" alt="{{ achievement.title }}" loading="lazy">
+            {% else %}
+                <span class="showcase-monogram" aria-hidden="true">{{ achievement.title|first }}</span>
             {% endif %}
-            <div>
+            <p class="showcase-description">{{ achievement.description }}</p>
+            <div class="showcase-caption">
+                <h2>{{ achievement.title }}</h2>
                 {% if achievement.award %}
                     <p class="content-item-label">{{ achievement.award }}</p>
                 {% endif %}
-                <h2>{{ achievement.title }}</h2>
-                <p>{{ achievement.description }}</p>
             </div>
         </article>
     {% empty %}
         <p class="empty-state">No achievements have been added yet.</p>
     {% endfor %}
+    </div>
+    </div>
+    </div>
 </section>
 </main>
 {% endblock %}

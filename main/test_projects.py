@@ -25,6 +25,63 @@ def project_data(**overrides):
     return data
 
 
+class ProjectUpdateTests(TestCase):
+    def setUp(self):
+        self.project = Project.objects.create(**project_data(title="Original project"))
+        self.url = reverse("main:update_project", args=[self.project.pk])
+
+    def test_edit_form_uses_existing_instance_and_shared_template(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "projects_form.html")
+        self.assertTemplateUsed(response, "base.html")
+        self.assertEqual(response.context["form"].instance.pk, self.project.pk)
+        self.assertContains(response, 'value="Original project"')
+        self.assertContains(response, f'action="{self.url}"')
+        self.assertContains(response, "Simpan Perubahan")
+        self.assertContains(self.client.get(reverse("main:show_projects")), f'href="{self.url}"')
+
+    def test_update_changes_same_record_and_serialized_listing(self):
+        count = Project.objects.count()
+        data = project_data(title="Updated project", description="Revised description", tech_stack="Python, Django")
+        response = self.client.post(self.url, data, follow=True)
+        self.assertRedirects(response, reverse("main:show_projects"))
+        self.project.refresh_from_db()
+        self.assertEqual(Project.objects.count(), count)
+        for field, value in data.items():
+            self.assertEqual(getattr(self.project, field), value)
+        self.assertContains(response, "Updated project")
+        self.assertContains(response, "Revised description")
+        self.assertContains(response, "Proyek berhasil diperbarui!")
+        record = next(row for row in self.client.get(reverse("main:get_projects_json")).json() if row["pk"] == str(self.project.pk))
+        self.assertEqual(record["fields"]["title"], "Updated project")
+
+    def test_invalid_update_preserves_saved_record_and_bound_input(self):
+        response = self.client.post(self.url, project_data(title="Unsaved title", project_url="invalid URL"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["form"].is_bound)
+        self.assertIn("project_url", response.context["form"].errors)
+        self.assertContains(response, 'value="Unsaved title"')
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.title, "Original project")
+
+    def test_unknown_project_and_unsupported_methods(self):
+        missing = reverse("main:update_project", args=[uuid.uuid4()])
+        self.assertEqual(self.client.get(missing).status_code, 404)
+        self.assertEqual(self.client.post(missing, project_data()).status_code, 404)
+        self.assertEqual(self.client.delete(self.url).status_code, 405)
+
+    def test_edit_post_requires_csrf(self):
+        client = Client(enforce_csrf_checks=True)
+        self.assertEqual(client.post(self.url, project_data()).status_code, 403)
+        client.get(self.url)
+        token = client.cookies[settings.CSRF_COOKIE_NAME].value
+        response = client.post(self.url, project_data(title="CSRF verified", csrfmiddlewaretoken=token))
+        self.assertEqual(response.status_code, 302)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.title, "CSRF verified")
+
+
 class ProjectFormTests(TestCase):
     def test_required_fields_and_optional_urls(self):
         form = ProjectForm(project_data())

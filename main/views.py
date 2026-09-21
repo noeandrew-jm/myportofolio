@@ -90,8 +90,31 @@ def create_project(request):
         "name": "Noe Andrew",
         "active_page": "projects",
         "form": form,
+        "is_update": False,
+        "submit_label": "Tambah Proyek",
     }
     return render(request, "projects_form.html", context)
+
+
+@require_http_methods(["GET", "POST"])
+def update_project(request, project_id):
+    project = get_object_or_404(Project, pk=project_id)
+    form = ProjectForm(
+        request.POST if request.method == "POST" else None,
+        instance=project,
+    )
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Proyek berhasil diperbarui!")
+        return redirect("main:show_projects")
+    return render(request, "projects_form.html", {
+        "name": "Noe Andrew",
+        "active_page": "projects",
+        "form": form,
+        "project": project,
+        "is_update": True,
+        "submit_label": "Simpan Perubahan",
+    })
 
 
 @require_http_methods(["GET", "POST"])

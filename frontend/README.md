@@ -25,8 +25,8 @@ Tailwind reads only the About component and `templates/index.html`, prefixes
 utilities with `tw-`, and disables preflight to avoid changing other Django pages.
 Keep `package-lock.json`, source files, and rebuilt assets together when committing
 or deploying. `node_modules/` is ignored. Libraries run from the local bundles;
-Kanit and the profile's Bodoni Moda are requested from Google Fonts with system
-font fallbacks.
+Kanit is requested from Google Fonts with a system sans-serif fallback. The whole
+profile uses the same font and purple, pink, blue and black palette.
 
 ## Homepage hero and profile
 
@@ -43,12 +43,16 @@ are hidden from accessibility APIs. Reduced motion shows the full paragraph and
 disables movement. The Contact Me link targets the existing profile's contact
 links at `#contact`.
 
-The design uses Kanit, background `#0C0C0C`, metallic heading text and the supplied
-purple/orange contact gradient. The four supplied decorative images are stored in
+The design uses the shared font and color variables from `static/css/style.css`:
+Kanit, background `#0C0C0C`, metallic hero text and blue/purple/pink accents.
+The profile inherits those same tokens and the contact buttons use the navbar's
+glass surface. The four supplied decorative images are stored in
 `static/image/about/`. The profile below the hero uses an editorial layout with
 the transparent `noe-cutout.png` portrait centered in front of an oversized `Portofolio`
 wordmark. Personal details and contact links remain server-rendered around the
-portrait. The former Focus Area section has been removed.
+portrait. The former Focus Area section, star seal and extra contact CTA have
+been removed. Email, GitHub and LinkedIn share the navigation's liquid-glass
+effect in a centered row below the portrait.
 
 The supplied `static/image/noe.png` has an opaque white background. Its transparent
 derivative is saved separately at `static/image/noe-cutout.png`; the source file
@@ -68,7 +72,25 @@ share one `.nav-group`, and only the link with `aria-current="page"` receives th
 `.glass-button` class. React renders only its decorative `aria-hidden` layer;
 native hrefs, keyboard navigation, labels and link context menus remain intact.
 CSS supplies the active effect without JavaScript, focus rings, touch states,
-and reduced-motion support. Profile contact links use ordinary styling.
+and reduced-motion support. The three `.profile-contact-link` anchors explicitly
+opt into the same effect; inactive navigation links remain plain.
+
+## Moving cards
+
+Achievements, Experience and Projects extend `showcase_base.html`, which itself
+extends the root template and loads `static/css/showcase.css` and
+`static/js/showcase.js`. Cards drift left continuously, loop seamlessly and pause
+on hover. Keyboard interaction, open confirmation dialogs, touch dragging and
+reduced-motion preferences also suspend automatic movement.
+
+Repeated groups are decorative and hidden from screen readers. Their actions
+delegate to original links and buttons. Copies contain no forms, IDs or dialogs,
+so project deletion keeps one CSRF-protected form and confirmation per record.
+Without JavaScript, the original cards are horizontally scrollable.
+
+The esbuild workspace resolver feeds local source through Node. This avoids
+native esbuild scanning inaccessible ancestor directories on restricted Windows
+environments while keeping the build inside the workspace.
 
 Firefox and Safari have limited SVG refraction support (as noted by the original
 library), so their appearance can differ from Chromium/Edge.

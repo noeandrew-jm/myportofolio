@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Add Project - {{ name }}{% endblock title %}
+{% block title %}{% if is_update %}Edit Project{% else %}Add Project{% endif %} - {{ name }}{% endblock title %}
 {% block content %}
     <main>
         <section class="page-intro">
             <div class="container">
                 <p class="hero-kicker">Karya yang saya bangun</p>
-                <h1>Tambah Proyek</h1>
+                <h1>{% if is_update %}Edit Proyek{% else %}Tambah Proyek{% endif %}</h1>
             </div>
         </section>
         <section class="form-section" aria-label="Formulir proyek">
             <div class="container">
                 <form method="post"
-                      action="{% url 'main:create_project' %}"
+                      action="{% if is_update %}{% url 'main:update_project' project.id %}{% else %}{% url 'main:create_project' %}{% endif %}"
                       class="project-form">
                     {% csrf_token %}
                     {% for error in form.non_field_errors %}
@@ -34,7 +34,7 @@
                         </div>
                     {% endfor %}
                     <div class="form-actions">
-                        <button type="submit" class="button">Tambah Proyek</button>
+                        <button type="submit" class="button">{{ submit_label }}</button>
                         <a href="{% url 'main:show_projects' %}" class="button button-secondary">Batal</a>
                     </div>
                 </form>

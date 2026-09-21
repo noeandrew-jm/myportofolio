@@ -3,14 +3,18 @@ import { fileURLToPath } from "node:url";
 import { build, transform } from "esbuild";
 import postcss from "postcss";
 import tailwindcss from "tailwindcss";
+import { workspaceResolver } from "./workspace-resolver.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const license = readFileSync(new URL("vendor/liquid-glass-react/LICENSE", import.meta.url), "utf8");
 const reactLicense = readFileSync(new URL("../node_modules/react/LICENSE", import.meta.url), "utf8");
 const motionLicense = readFileSync(new URL("../node_modules/framer-motion/LICENSE.md", import.meta.url), "utf8");
 
-await build({
+const glassBundle = await build({
   absWorkingDir: root,
+  tsconfigRaw: { compilerOptions: { jsx: "react-jsx" } },
+  plugins: [workspaceResolver(root)],
+  write: false,
   entryPoints: ["./frontend/liquid-glass-buttons.tsx"],
   outfile: "static/js/liquid-glass.js",
   bundle: true,
@@ -26,9 +30,13 @@ await build({
   },
   logLevel: "info",
 });
+for (const file of glassBundle.outputFiles) writeFileSync(file.path, file.contents);
 
-await build({
+const aboutBundle = await build({
   absWorkingDir: root,
+  tsconfigRaw: { compilerOptions: { jsx: "react-jsx" } },
+  plugins: [workspaceResolver(root)],
+  write: false,
   entryPoints: ["./frontend/about.tsx"],
   outfile: "static/js/about.js",
   bundle: true,
@@ -44,6 +52,7 @@ await build({
   },
   logLevel: "info",
 });
+for (const file of aboutBundle.outputFiles) writeFileSync(file.path, file.contents);
 
 const cssSource = new URL("about.css", import.meta.url);
 const css = await postcss([tailwindcss({

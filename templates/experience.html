@@ -1,26 +1,32 @@
-{% extends 'base.html' %}
+{% extends 'showcase_base.html' %}
 
 {% block title %}Experience - {{ name }}{% endblock %}
 
 {% block content %}
 <main>
-<section class="page-intro">
+<section class="page-intro showcase-intro">
     <div class="container">
         <p class="hero-kicker">What I have been working on</p>
         <h1>Experience</h1>
         <p>My growing path across software engineering, fintech, and student-led collaboration.</p>
     </div>
 </section>
-<section class="container content-list" aria-label="Experience">
+<section class="showcase" aria-label="Experience" data-showcase>
+    <p class="showcase-hint">Hover to pause <span aria-hidden="true">&middot;</span> Swipe to explore</p>
+    <div class="showcase-viewport" tabindex="0" aria-label="Experience cards, scroll horizontally">
+    <div class="showcase-track">
+    <div class="showcase-group">
     {% for experience in experience_list %}
-        <article class="content-item{% if not experience.thumbnail %} content-item--text-only{% endif %}">
+        <article class="showcase-card">
             {% if experience.thumbnail %}
-                <img class="experience-image" src="{{ experience.thumbnail }}" alt="{{ experience.title }}">
+                <img class="showcase-image" src="{{ experience.thumbnail }}" alt="{{ experience.title }}" loading="lazy">
+            {% else %}
+                <span class="showcase-monogram" aria-hidden="true">{{ experience.title|first }}</span>
             {% endif %}
-            <div>
-                <p class="content-item-label">{{ experience.get_category_display }}</p>
+            <p class="showcase-description">{{ experience.description }}</p>
+            <div class="showcase-caption">
                 <h2>{{ experience.title }}</h2>
-                <p>{{ experience.description }}</p>
+                <p class="content-item-label">{{ experience.get_category_display }}</p>
                 <p class="experience-status">
                     {% if experience.is_ongoing %}
                         Ongoing since {{ experience.started_at|date:"F Y" }}
@@ -33,6 +39,9 @@
     {% empty %}
         <p class="empty-state">No experience has been added yet.</p>
     {% endfor %}
+    </div>
+    </div>
+    </div>
 </section>
 </main>
 {% endblock %}
