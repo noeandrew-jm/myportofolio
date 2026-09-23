@@ -132,6 +132,10 @@ Saat mengambil perubahan Tugas 2 dari Git, jalankan ulang instalasi dependency b
 
 URL proyek: <https://noe-andrew-myportofolio.pws.cs.ui.ac.id/>. Database PWS terpisah dari SQLite lokal. Atur environment produksi melalui tab Environs PWS sesuai konfigurasi proyek, termasuk `PRODUCTION=True`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, dan `SCHEMA`. Jangan masukkan nilai kredensial ke Git atau README.
 
+Jika Experience, Achievements, dan Projects gagal dengan `invalid integer value "<5432>" for connection option "port"`, perbaiki `DB_PORT=5432` pada **Environs PWS**. Periksa juga nilai database lain agar memakai kredensial asli tanpa pembungkus contoh `<...>`. Lihat [panduan perbaikan database PWS](docs/pws-database.md) untuk langkah lengkap. Mengedit `.env.prod` lokal atau melakukan push Git saja tidak memperbarui Environs.
+
+Konfigurasi produksi sekarang memvalidasi port serta pengaturan database saat aplikasi dimulai dan menggunakan `DEBUG=False`. Perbaiki Environs sebelum men-deploy perubahan ini; konfigurasi yang tidak valid akan menghentikan startup dengan pesan di Logs. SQLite lokal tetap digunakan ketika `PRODUCTION=False`.
+
 Setelah perubahan diperiksa dan di-commit, perintah berikut mengirim commit aktif ke branch tujuan tanpa bergantung pada nama branch lokal:
 
 ```powershell

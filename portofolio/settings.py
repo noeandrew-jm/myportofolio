@@ -12,12 +12,13 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 
 from pathlib import Path
 import os
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+# PWS Environs take priority; .env is only a local fallback.
+load_dotenv(BASE_DIR / '.env', override=False)
 
 
 # Quick-start development settings - unsuitable for production
@@ -27,10 +28,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-r$qbe_b)b$7a3ema+fle*xd+(!=k_8m+ya+h91_mc!dx3-2u8*'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+PRODUCTION = os.getenv('PRODUCTION', 'False').strip().lower() == 'true'
+DEBUG = not PRODUCTION
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "noe-andrew-myportofolio.pws.cs.ui.ac.id"]
-PRODUCTION = os.getenv('PRODUCTION', 'False').lower() == 'true'
 
 
 # Application definition
@@ -81,16 +82,45 @@ WSGI_APPLICATION = 'portofolio.wsgi.application'
 
 # Database configuration
 if PRODUCTION:
+    # Validate before serving requests so configuration errors appear in PWS Logs.
+    # Never include database credentials in the error message.
+    def database_env(name, default=None):
+        value = os.getenv(name, default)
+        if value is None or not value.strip():
+            raise ImproperlyConfigured(
+                f'{name} wajib diisi di PWS Environs dengan nilai database yang asli.'
+            )
+        if name == 'DB_PASSWORD':
+            return value
+        value = value.strip()
+        if value.startswith('<') and value.endswith('>'):
+            raise ImproperlyConfigured(
+                f'{name} masih dibungkus <...>. Isi nilai asli tanpa tanda '
+                '< dan > di PWS Environs.'
+            )
+        return value
+
+    raw_db_port = os.getenv('DB_PORT', '5432').strip()
+    try:
+        db_port = int(raw_db_port)
+    except ValueError:
+        db_port = 0
+    if not raw_db_port.isascii() or not raw_db_port.isdecimal() or not 1 <= db_port <= 65535:
+        raise ImproperlyConfigured(
+            'DB_PORT harus berupa angka 1-65535 di PWS Environs, '
+            'contohnya DB_PORT=5432, tanpa tanda < dan >.'
+        )
+
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('DB_NAME'),
-            'USER': os.getenv('DB_USER'),
-            'PASSWORD': os.getenv('DB_PASSWORD'),
-            'HOST': os.getenv('DB_HOST'),
-            'PORT': os.getenv('DB_PORT'),
+            'NAME': database_env('DB_NAME'),
+            'USER': database_env('DB_USER'),
+            'PASSWORD': database_env('DB_PASSWORD'),
+            'HOST': database_env('DB_HOST'),
+            'PORT': db_port,
             'OPTIONS': {
-                'options': f"-c search_path={os.getenv('SCHEMA', 'public')}"
+                'options': f"-c search_path={database_env('SCHEMA', 'public')}"
             }
         }
     }

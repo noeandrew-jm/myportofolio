@@ -20,6 +20,7 @@ class ProjectForm(ModelForm):
             "tech_stack": "Teknologi yang Digunakan",
             "project_url": "URL Proyek",
             "project_image_url": "URL Gambar Proyek",
+            
         }
 
         widgets = {
