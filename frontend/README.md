@@ -52,7 +52,9 @@ the transparent `noe-cutout.png` portrait centered in front of an oversized `Por
 wordmark. Personal details and contact links remain server-rendered around the
 portrait. The former Focus Area section, star seal and extra contact CTA have
 been removed. Email, GitHub and LinkedIn share the navigation's liquid-glass
-effect in a centered row below the portrait.
+effect below the student number in the details column to the right of the
+portrait. On small screens the details follow the portrait and the three links
+share a row beneath the student number.
 
 The supplied `static/image/noe.png` has an opaque white background. Its transparent
 derivative is saved separately at `static/image/noe-cutout.png`; the source file
@@ -79,7 +81,10 @@ opt into the same effect; inactive navigation links remain plain.
 
 Achievements, Experience and Projects extend `showcase_base.html`, which itself
 extends the root template and loads `static/css/showcase.css` and
-`static/js/showcase.js`. Cards drift left continuously, loop seamlessly and pause
+`static/js/showcase.js`. Each page pairs two existing decorative images with its
+heading: moon/object on Achievements, lego/group on Experience, and object/lego
+on Projects. The images flank the heading on desktop and sit above it on small
+screens without covering text or controls. Cards drift left continuously, loop seamlessly and pause
 on hover. Keyboard interaction, open confirmation dialogs, touch dragging and
 reduced-motion preferences also suspend automatic movement.
 
@@ -87,6 +92,11 @@ Repeated groups are decorative and hidden from screen readers. Their actions
 delegate to original links and buttons. Copies contain no forms, IDs or dialogs,
 so project deletion keeps one CSRF-protected form and confirmation per record.
 Without JavaScript, the original cards are horizontally scrollable.
+
+Cards show their title first, followed by the image, description, and supporting
+details/actions. Landscape images keep their proportions at the card width;
+taller images use a square crop. Images and empty-image placeholders use subtly
+rounded rectangular corners instead of circular frames.
 
 The esbuild workspace resolver feeds local source through Node. This avoids
 native esbuild scanning inaccessible ancestor directories on restricted Windows

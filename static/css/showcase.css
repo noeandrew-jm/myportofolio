@@ -1,5 +1,26 @@
 .showcase-intro { text-align: center; border-bottom: 0; padding-bottom: 1.5rem; }
-.showcase-intro h1, .showcase-intro p { margin-right: auto; margin-left: auto; }
+.showcase-intro-copy h1, .showcase-intro-copy > p { margin-right: auto; margin-left: auto; }
+.showcase-intro-layout {
+    display: grid;
+    grid-template-columns: minmax(80px, 1fr) minmax(0, 4fr) minmax(80px, 1fr);
+    align-items: center;
+    gap: clamp(0.75rem, 2vw, 1.75rem);
+}
+.showcase-intro-copy { min-width: 0; }
+.showcase-intro-copy h1 { font-size: clamp(2rem, 6.5vw, 5.25rem); }
+.showcase-decoration {
+    display: block;
+    justify-self: center;
+    width: 100%;
+    max-width: 180px;
+    height: auto;
+    aspect-ratio: 1;
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
+    filter: drop-shadow(0 12px 24px #7721b128);
+}
+.showcase-decoration--object { max-width: 140px; }
 .showcase-intro .project-header { justify-content: center; flex-wrap: wrap; }
 .showcase-intro .project-header h1 { margin: 0; }
 .projects-section { padding-top: 1rem; padding-bottom: 0; }
@@ -26,13 +47,14 @@
 .showcase-track { display: flex; width: max-content; }
 .showcase-group { display: flex; align-items: stretch; gap: var(--card-gap); padding-right: var(--card-gap); }
 .showcase-card {
+    --card-padding: 2rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     flex: 0 0 var(--card-width);
     width: var(--card-width);
     min-height: 460px;
-    padding: 2.5rem 2rem 2rem;
+    padding: 2.5rem var(--card-padding) 2rem;
     border: 1px solid #63507666;
     border-radius: 32px;
     color: #e4e0f0;
@@ -40,20 +62,34 @@
     text-align: center;
     box-shadow: inset 0 1px 0 #d9c6ff12, 0 12px 28px #0003;
 }
+.showcase-title {
+    width: 100%;
+    margin-bottom: 1.25rem;
+    color: #f0eaff;
+    font-size: 1.35rem;
+    font-weight: 500;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
 .showcase-image, .showcase-monogram {
     display: block;
     flex-shrink: 0;
-    width: 118px;
-    height: 118px;
-    margin: 0 auto 1.75rem;
-    border: 3px solid #d3bff08c;
-    border-radius: 50%;
+    width: 100%;
+    margin: 0 auto 1.5rem;
+    border: 1px solid #d3bff08c;
+    border-radius: 12px;
     background: #1b1826;
+}
+.showcase-image {
+    height: auto;
+    /* Keep landscape proportions; cap taller images at a square frame. */
+    max-height: calc(var(--card-width) - var(--card-padding) - var(--card-padding) - 2px);
     object-fit: cover;
 }
 .showcase-monogram {
     display: grid;
     place-items: center;
+    aspect-ratio: 1;
     color: #d7d8ff;
     background: radial-gradient(circle at 25% 20%, #4563a7, #692a82 60%, #301b4c);
     font-size: 2.75rem;
@@ -61,7 +97,6 @@
 }
 .showcase-description { margin-bottom: 1.75rem; font-size: 1rem; font-weight: 300; line-height: 1.75; white-space: pre-line; }
 .showcase-caption { width: 100%; margin-top: auto; padding-top: 1.2rem; border-top: 1px solid #8472935c; }
-.showcase-caption h2 { margin-bottom: 0.65rem; color: #f0eaff; font-size: 1.35rem; font-weight: 500; }
 .showcase-caption .content-item-label { color: #d2b3ec; font-size: 0.8rem; line-height: 1.65; letter-spacing: 0.04em; }
 .showcase-caption .experience-status { color: #a9b9d5; font-size: 0.8rem; }
 .showcase-card .project-card-actions { width: 100%; justify-content: center; margin-top: 0; gap: 0.55rem; }
@@ -71,10 +106,17 @@
 .showcase--empty .showcase-hint { display: none; }
 .showcase-copy [data-copy-action] { cursor: pointer; }
 @media (max-width: 640px) {
+    .showcase-intro { padding-top: 1.5rem; }
+    .showcase-intro-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem 1rem; }
+    .showcase-intro-copy { grid-column: 1 / -1; grid-row: 2; }
+    .showcase-intro-copy h1 { font-size: clamp(1.8rem, 8vw, 3rem); }
+    .showcase-decoration { width: clamp(72px, 20vw, 104px); grid-row: 1; }
+    .showcase-decoration--left { grid-column: 1; justify-self: start; }
+    .showcase-decoration--right { grid-column: 2; justify-self: end; }
+    .showcase-decoration--object { width: clamp(60px, 17vw, 88px); }
     .showcase { --card-width: min(310px, 83vw); --card-gap: 18px; padding-bottom: 3rem; }
-    .showcase-card { min-height: 440px; padding: 2rem 1.4rem; border-radius: 26px; }
+    .showcase-card { --card-padding: 1.4rem; min-height: 440px; padding: 2rem var(--card-padding); border-radius: 26px; }
     .showcase-description { font-size: 0.95rem; }
-    .showcase-image, .showcase-monogram { width: 100px; height: 100px; }
     .showcase-intro .project-header { align-items: center; }
     .showcase-intro .project-add-button { width: auto; }
 }

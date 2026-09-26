@@ -10,6 +10,9 @@ from main.views import (
     show_main,
     show_projects,
     update_project,
+    register,
+    login_user,
+    logout_user,
 )
 
 app_name = "main"
@@ -24,4 +27,7 @@ urlpatterns = [
     path("projects/<uuid:project_id>/delete/", delete_project, name="delete_project"),
     path("api/projects/", get_projects_json, name="get_projects_json"),
     path("api/projects/xml/", get_projects_xml, name="get_projects_xml"),
+    path("register/", register, name="register"),
+    path("login/", login_user, name="login"),
+    path("logout/", logout_user, name="logout"),
 ]

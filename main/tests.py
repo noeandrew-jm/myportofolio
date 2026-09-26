@@ -102,7 +102,6 @@ class MainTest(TestCase):
             self.assertContains(response, escape(response.context[key]))
         self.assertContains(response, 'href="mailto:noeandrewjms@gmail.com"')
         self.assertContains(response, 'href="https://www.linkedin.com/in/noeandrew"')
-        self.assertContains(response, '<dl class="meta-list">')
         document = NavigationParser()
         document.feed(response.content.decode())
         contact_links = [

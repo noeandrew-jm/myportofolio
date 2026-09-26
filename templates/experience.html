@@ -1,14 +1,19 @@
 {% extends 'showcase_base.html' %}
+{% load static %}
 
 {% block title %}Experience - {{ name }}{% endblock %}
 
 {% block content %}
 <main>
 <section class="page-intro showcase-intro">
-    <div class="container">
-        <p class="hero-kicker">What I have been working on</p>
-        <h1>Experience</h1>
-        <p>My growing path across software engineering, fintech, and student-led collaboration.</p>
+    <div class="container showcase-intro-layout">
+        <img class="showcase-decoration showcase-decoration--left showcase-decoration--lego" src="{% static 'image/about/lego.png' %}" alt="" aria-hidden="true" width="180" height="180" draggable="false">
+        <div class="showcase-intro-copy">
+            <p class="hero-kicker">What I have been working on</p>
+            <h1>Experience</h1>
+            <p>My growing path across software engineering, fintech, and student-led collaboration.</p>
+        </div>
+        <img class="showcase-decoration showcase-decoration--right showcase-decoration--group" src="{% static 'image/about/group.png' %}" alt="" aria-hidden="true" width="180" height="180" draggable="false">
     </div>
 </section>
 <section class="showcase" aria-label="Experience" data-showcase>
@@ -18,6 +23,7 @@
     <div class="showcase-group">
     {% for experience in experience_list %}
         <article class="showcase-card">
+            <h2 class="showcase-title">{{ experience.title }}</h2>
             {% if experience.thumbnail %}
                 <img class="showcase-image" src="{{ experience.thumbnail }}" alt="{{ experience.title }}" loading="lazy">
             {% else %}
@@ -25,7 +31,6 @@
             {% endif %}
             <p class="showcase-description">{{ experience.description }}</p>
             <div class="showcase-caption">
-                <h2>{{ experience.title }}</h2>
                 <p class="content-item-label">{{ experience.get_category_display }}</p>
                 <p class="experience-status">
                     {% if experience.is_ongoing %}

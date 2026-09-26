@@ -1,14 +1,19 @@
 {% extends 'showcase_base.html' %}
+{% load static %}
 
 {% block title %}Achievements - {{ name }}{% endblock %}
 
 {% block content %}
 <main>
 <section class="page-intro showcase-intro">
-    <div class="container">
-        <p class="hero-kicker">Selected milestones</p>
-        <h1>Achievements</h1>
-        <p>A snapshot of competitions, projects, and moments that have shaped how I build and collaborate.</p>
+    <div class="container showcase-intro-layout">
+        <img class="showcase-decoration showcase-decoration--left showcase-decoration--moon" src="{% static 'image/about/moon.png' %}" alt="" aria-hidden="true" width="180" height="180" draggable="false">
+        <div class="showcase-intro-copy">
+            <p class="hero-kicker">Selected milestones</p>
+            <h1>Achievements</h1>
+            <p>A snapshot of competitions, projects, and moments that have shaped how I build and collaborate.</p>
+        </div>
+        <img class="showcase-decoration showcase-decoration--right showcase-decoration--object" src="{% static 'image/about/object.png' %}" alt="" aria-hidden="true" width="150" height="150" draggable="false">
     </div>
 </section>
 <section class="showcase" aria-label="Achievements" data-showcase>
@@ -18,18 +23,18 @@
     <div class="showcase-group">
     {% for achievement in achievement_list %}
         <article class="showcase-card">
+            <h2 class="showcase-title">{{ achievement.title }}</h2>
             {% if achievement.thumbnail %}
                 <img class="showcase-image" src="{{ achievement.thumbnail }}" alt="{{ achievement.title }}" loading="lazy">
             {% else %}
                 <span class="showcase-monogram" aria-hidden="true">{{ achievement.title|first }}</span>
             {% endif %}
             <p class="showcase-description">{{ achievement.description }}</p>
-            <div class="showcase-caption">
-                <h2>{{ achievement.title }}</h2>
-                {% if achievement.award %}
+            {% if achievement.award %}
+                <div class="showcase-caption">
                     <p class="content-item-label">{{ achievement.award }}</p>
-                {% endif %}
-            </div>
+                </div>
+            {% endif %}
         </article>
     {% empty %}
         <p class="empty-state">No achievements have been added yet.</p>

@@ -1,16 +1,21 @@
 {% extends "showcase_base.html" %}
+{% load static %}
 {% block title %}Projects - {{ name }}{% endblock title %}
 {% block content %}
 <main>
     <section class="page-intro showcase-intro">
-        <div class="container">
-            <p class="hero-kicker">Karya yang saya bangun</p>
-            <div class="project-header">
-                <h1>Projects</h1>
-                <a href="{% url 'main:create_project' %}" class="button project-add-button">
-                    <span aria-hidden="true">+</span> Tambah Proyek
-                </a>
+        <div class="container showcase-intro-layout">
+            <img class="showcase-decoration showcase-decoration--left showcase-decoration--object" src="{% static 'image/about/object.png' %}" alt="" aria-hidden="true" width="150" height="150" draggable="false">
+            <div class="showcase-intro-copy">
+                <p class="hero-kicker">Karya yang saya bangun</p>
+                <div class="project-header">
+                    <h1>Projects</h1>
+                    <a href="{% url 'main:create_project' %}" class="button project-add-button">
+                        <span aria-hidden="true">+</span> Tambah Proyek
+                    </a>
+                </div>
             </div>
+            <img class="showcase-decoration showcase-decoration--right showcase-decoration--lego" src="{% static 'image/about/lego.png' %}" alt="" aria-hidden="true" width="180" height="180" draggable="false">
         </div>
     </section>
     <section class="container projects-section" aria-label="Daftar proyek">
@@ -31,6 +36,7 @@
         <div class="showcase-group">
             {% for project in project_list %}
                 <article class="showcase-card">
+                    <h2 class="showcase-title">{{ project.title }}</h2>
                     {% if project.project_image_url %}
                         <img src="{{ project.project_image_url }}" alt="Gambar {{ project.title }}"
                              class="showcase-image" loading="lazy">
@@ -39,8 +45,7 @@
                     {% endif %}
                     <p class="showcase-description">{{ project.description }}</p>
                     <div class="showcase-caption">
-                    <h2>{{ project.title }}</h2>
-                    <p class="content-item-label">{{ project.tech_stack }}</p>
+                        <p class="content-item-label">{{ project.tech_stack }}</p>
                     </div>
                     <div class="project-card-actions">
                         {% if project.project_url %}

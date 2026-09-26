@@ -53,6 +53,8 @@ Buka <http://127.0.0.1:8000/>. Biarkan terminal server tetap berjalan; tekan `Ct
 
 `migrate` membuat tabel dan memasukkan dua pengalaman serta dua prestasi awal dari konten portofolio yang sudah ada. Migrasi data hanya dijalankan sekali; perubahan selanjutnya bisa dilakukan melalui admin. Database lokal tidak disertakan di Git.
 
+Pengalaman LANJUT.ID ditambahkan lewat migrasi baru `0006_seed_lanjut_experience`. Mengedit `0002_seed_experiences.py` yang sudah diterapkan tidak memasukkan data baru ke database; jalankan `python manage.py migrate` untuk menerapkan migrasi baru. Untuk menambah atau mengedit pengalaman berikutnya, gunakan `/admin/main/experience/`. Migrasi LANJUT.ID mempertahankan entri dengan judul yang sama jika sudah ada. Saat deploy ke PWS, sertakan migrasi baru dan `static/image/Lanjut.id.png`, lalu pastikan migrasi dan `collectstatic --noinput` berhasil di lingkungan produksi.
+
 Untuk membuat akun admin milik sendiri:
 
 ```powershell

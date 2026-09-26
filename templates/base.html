@@ -18,11 +18,50 @@
         <div class="container">
             <a href="{% url 'main:show_main' %}" class="brand">{{ name }}<span aria-hidden="true">.</span></a>
             <nav class="nav-group" aria-label="Main navigation">
-                <a href="{% url 'main:show_main' %}" class="nav-link{% if active_page == 'about' %} glass-button active{% endif %}"{% if active_page == 'about' %} aria-current="page"{% endif %}><span class="glass-button__label">About</span></a>
-                <a href="{% url 'main:show_achievements' %}" class="nav-link{% if active_page == 'achievements' %} glass-button active{% endif %}"{% if active_page == 'achievements' %} aria-current="page"{% endif %}><span class="glass-button__label">Achievements</span></a>
-                <a href="{% url 'main:show_experience' %}" class="nav-link{% if active_page == 'experience' %} glass-button active{% endif %}"{% if active_page == 'experience' %} aria-current="page"{% endif %}><span class="glass-button__label">Experience</span></a>
-                <a href="{% url 'main:show_projects' %}" class="nav-link{% if active_page == 'projects' %} glass-button active{% endif %}"{% if active_page == 'projects' %} aria-current="page"{% endif %}><span class="glass-button__label">Projects</span></a>
-            </nav>
+    <a href="{% url 'main:show_main' %}"
+       class="nav-link{% if active_page == 'about' %} glass-button active{% endif %}"
+       {% if active_page == 'about' %}aria-current="page"{% endif %}>
+        <span class="glass-button__label">About</span>
+    </a>
+
+    <a href="{% url 'main:show_achievements' %}"
+       class="nav-link{% if active_page == 'achievements' %} glass-button active{% endif %}"
+       {% if active_page == 'achievements' %}aria-current="page"{% endif %}>
+        <span class="glass-button__label">Achievements</span>
+    </a>
+
+    <a href="{% url 'main:show_experience' %}"
+       class="nav-link{% if active_page == 'experience' %} glass-button active{% endif %}"
+       {% if active_page == 'experience' %}aria-current="page"{% endif %}>
+        <span class="glass-button__label">Experience</span>
+    </a>
+
+    <a href="{% url 'main:show_projects' %}"
+       class="nav-link{% if active_page == 'projects' %} glass-button active{% endif %}"
+       {% if active_page == 'projects' %}aria-current="page"{% endif %}>
+        <span class="glass-button__label">Projects</span>
+    </a>
+
+    {% if user.is_authenticated %}
+        <span class="nav-user">{{ user.username }}</span>
+
+        <a href="{% url 'main:logout' %}" class="nav-link">
+            <span class="glass-button__label">Logout</span>
+        </a>
+    {% else %}
+        <a href="{% url 'main:login' %}"
+           class="nav-link{% if active_page == 'login' %} glass-button active{% endif %}"
+           {% if active_page == 'login' %}aria-current="page"{% endif %}>
+            <span class="glass-button__label">Login</span>
+        </a>
+
+        <a href="{% url 'main:register' %}"
+           class="nav-link{% if active_page == 'register' %} glass-button active{% endif %}"
+           {% if active_page == 'register' %}aria-current="page"{% endif %}>
+            <span class="glass-button__label">Register</span>
+        </a>
+    {% endif %}
+</nav>
         </div>
     </header>
     {% if messages %}
