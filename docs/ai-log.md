@@ -57,3 +57,23 @@ Verifikasi lokal:
 - Setelah perbaikan CSS, 17 pemeriksaan khusus pencarian dan layout kembali lulus pada keempat lebar layar. Tidak ditemukan error JavaScript; permintaan favicon yang belum tersedia mengembalikan 404. Server dan browser pengujian telah dihentikan.
 
 Deployment PWS, isi proyek pribadi, akses gambar Google Drive, dan pengumpulan tugas belum dilakukan atau diverifikasi. Form publik mengikuti tahap tutorial tanpa autentikasi pemilik; tip kode rahasia pada akhir tutorial merupakan langkah opsional yang belum diaktifkan.
+
+## Tutorial Selenium dan Burp Suite — 27 September 2026
+
+Pemilik memberikan lampiran tutorial otomasi browser dan intersepsi CSRF, lalu meminta: "tambahkan hal ini. bilamana butuh bantuan saya seperti eksternal, pws, dll beritahu. namun bila tidak ada tambahkan tanpa ada kesalahan".
+
+Bantuan Codex mencakup runner Selenium `test_e2e.py`, dependency pengembangan terpisah, pemeriksaan login/cookie/otorisasi/logout dan CSRF, serta [panduan menjalankan tes dan demonstrasi Burp](browser-security-testing.md). Dokumentasi Selenium, PortSwigger, dan Django digunakan untuk memeriksa petunjuk driver, proxy, serta validasi token.
+
+Skrip tutorial disesuaikan agar server loopback dan database SQLite pengujiannya dibuat otomatis. Akun `burhan_test` dan `admin_test` hanya hidup di database sementara tersebut. Password dapat dibaca dari environment atau dibuat acak dalam memori. Pendekatan ini menghindari perubahan akun pada database portofolio maupun PWS dan tidak memerlukan kredensial baru dari pemilik.
+
+README diselaraskan dengan otorisasi yang sudah tersedia: tambah dan hapus proyek memerlukan superuser, sedangkan endpoint edit masih publik. Pernyataan form publik pada catatan 16 September menggambarkan keadaan saat itu, bukan perilaku terkini.
+
+Verifikasi lokal pada sesi ini:
+
+- `manage.py check`: tidak ada masalah.
+- `manage.py makemigrations --check --dry-run`: tidak ada perubahan model tanpa migrasi.
+- `manage.py test --noinput`: seluruh 70 tes Django lulus, termasuk 12 tes autentikasi, otorisasi, star, dan CSRF baru.
+- `test_e2e.py --headless`: seluruh alur lulus pada Chrome 153 dengan Selenium 4.49.0, termasuk POST tanpa token ditolak tanpa menyimpan data, POST bertoken sah berhasil, dan cookie dibersihkan saat logout.
+- Selenium menggulir tombol submit ke tengah layar sebelum klik agar animasi smooth scroll tidak menyebabkan klik di luar viewport. Browser, server uji, dan database sementara dibersihkan saat selesai.
+
+Interaksi pada antarmuka Burp dan screenshot untuk tugas memerlukan tindakan pemilik jika diminta oleh pengajar. Demonstrasi Burp belum dijalankan. Tutorial lokal ini tidak memerlukan deployment PWS, dan tidak membuktikan deployment atau pengumpulan tugas sudah dilakukan.

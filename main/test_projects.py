@@ -3,6 +3,7 @@ from unittest.mock import patch
 from xml.etree import ElementTree
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core import serializers
 from django.http import HttpResponse
 from django.test import Client, TestCase
@@ -132,6 +133,7 @@ class ProjectFormTests(TestCase):
 class ProjectPageTests(TestCase):
     @classmethod
     def setUpTestData(cls):
+        cls.admin = get_user_model().objects.create_superuser(username="project_admin")
         Project.objects.all().delete()
         cls.project = Project.objects.create(
             **project_data(
@@ -150,6 +152,8 @@ class ProjectPageTests(TestCase):
             ("create_project", "projects_form.html"),
         ):
             with self.subTest(route=route):
+                if route == "create_project":
+                    self.client.force_login(self.admin)
                 response = self.client.get(reverse(f"main:{route}"))
                 self.assertEqual(response.status_code, 200)
                 self.assertTemplateUsed(response, template)
@@ -176,9 +180,11 @@ class ProjectPageTests(TestCase):
         self.assertContains(response, f'href="{escape(self.project.project_url)}"')
         self.assertContains(response, f'src="{self.project.project_image_url}"')
         self.assertNotContains(response, 'src=""')
-        self.assertContains(response, f'href="{reverse("main:create_project")}"')
+        self.assertNotContains(response, f'href="{reverse("main:create_project")}"')
+        self.assertTemplateUsed(response, "components/projects_star.html")
 
     def test_get_form_is_unbound_and_does_not_create_data(self):
+        self.client.force_login(self.admin)
         count = Project.objects.count()
         response = self.client.get(reverse("main:create_project"))
 
@@ -187,6 +193,7 @@ class ProjectPageTests(TestCase):
         self.assertEqual(Project.objects.count(), count)
 
     def test_valid_post_saves_and_redirects_with_visible_success_message(self):
+        self.client.force_login(self.admin)
         data = project_data(
             title="New project via form",
             project_url="https://example.com/new",
@@ -202,6 +209,7 @@ class ProjectPageTests(TestCase):
         self.assertContains(response, saved.title)
 
     def test_post_can_create_without_optional_urls(self):
+        self.client.force_login(self.admin)
         data = project_data(title="Text only project")
         data.pop("project_url")
         data.pop("project_image_url")
@@ -213,6 +221,7 @@ class ProjectPageTests(TestCase):
         self.assertEqual(saved.project_image_url, "")
 
     def test_empty_post_returns_bound_errors_and_does_not_save(self):
+        self.client.force_login(self.admin)
         count = Project.objects.count()
         response = self.client.post(reverse("main:create_project"), {})
 
@@ -225,6 +234,7 @@ class ProjectPageTests(TestCase):
         self.assertEqual(Project.objects.count(), count)
 
     def test_invalid_post_preserves_input_and_shows_errors(self):
+        self.client.force_login(self.admin)
         count = Project.objects.count()
         data = project_data(title="Keep this title", project_url="invalid URL")
         response = self.client.post(reverse("main:create_project"), data)
@@ -297,10 +307,12 @@ class ProjectPageTests(TestCase):
         self.assertNotContains(response, self.project.title)
 
     def test_delete_confirmation_posts_with_csrf_and_unique_project_target(self):
+        self.client.force_login(self.admin)
         response = self.client.get(reverse("main:show_projects"))
 
         self.assertTemplateUsed(response, "components/project_delete_modal.html")
-        self.assertContains(response, 'name="csrfmiddlewaretoken"', count=2)
+        # Each project has a separate star form and delete confirmation form.
+        self.assertContains(response, 'name="csrfmiddlewaretoken"', count=4)
         for project in (self.project, self.other_project):
             self.assertContains(
                 response,
@@ -310,12 +322,14 @@ class ProjectPageTests(TestCase):
             self.assertContains(response, f'id="delete-project-{project.pk}"', count=1)
 
     def test_get_delete_never_deletes(self):
+        self.client.force_login(self.admin)
         response = self.client.get(reverse("main:delete_project", args=[self.project.pk]))
 
         self.assertRedirects(response, reverse("main:show_projects"))
         self.assertTrue(Project.objects.filter(pk=self.project.pk).exists())
 
     def test_post_delete_removes_only_target_and_shows_success(self):
+        self.client.force_login(self.admin)
         response = self.client.post(
             reverse("main:delete_project", args=[self.project.pk]), follow=True
         )
@@ -326,6 +340,7 @@ class ProjectPageTests(TestCase):
         self.assertContains(response, "Proyek berhasil dihapus!")
 
     def test_delete_unknown_or_malformed_uuid_returns_404(self):
+        self.client.force_login(self.admin)
         missing_url = reverse("main:delete_project", args=[uuid.uuid4()])
         for method in (self.client.get, self.client.post):
             with self.subTest(method=method.__name__):
@@ -349,7 +364,8 @@ class ProjectDataDeliveryTests(TestCase):
         self.assertEqual({item["pk"] for item in payload}, {str(self.project.pk), str(self.other_project.pk)})
         for item in payload:
             self.assertEqual(item["model"], "main.project")
-            self.assertEqual(set(item["fields"]), set(project_data()))
+            self.assertEqual(set(item["fields"]), set(project_data()) | {"starred_by"})
+            self.assertEqual(item["fields"]["starred_by"], [])
         objects = [item.object for item in serializers.deserialize("json", response.content)]
         self.assertEqual({obj.pk for obj in objects}, {self.project.pk, self.other_project.pk})
         self.assertTrue(all(isinstance(obj, Project) for obj in objects))
@@ -394,8 +410,13 @@ class ProjectDataDeliveryTests(TestCase):
 
 
 class ProjectCsrfTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = get_user_model().objects.create_superuser(username="csrf_admin")
+
     def setUp(self):
         self.csrf_client = Client(enforce_csrf_checks=True)
+        self.csrf_client.force_login(self.admin)
         self.project = Project.objects.create(**project_data(title="Keep unless authorized"))
 
     def test_create_and_delete_without_csrf_token_are_rejected(self):

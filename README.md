@@ -45,8 +45,8 @@ Buka <http://127.0.0.1:8000/>. Biarkan terminal server tetap berjalan; tekan `Ct
 | `/experience/` | Daftar pengalaman, kategori, dan status | Model `Experience` |
 | `/achievements/` | Daftar prestasi, penghargaan, dan gambar | Model `Achievement` |
 | `/projects/` | Daftar proyek dan pencarian `?title=...` | Model `Project`, melalui serialisasi/deserialisasi JSON |
-| `/projects/add/` | Form tambah proyek | `ProjectForm` dengan validasi dan CSRF |
-| `/projects/<uuid>/delete/` | Hapus proyek lewat konfirmasi | POST dengan CSRF; GET tidak menghapus |
+| `/projects/add/` | Form tambah proyek | Superuser; `ProjectForm` dengan validasi dan CSRF |
+| `/projects/<uuid>/delete/` | Hapus proyek lewat konfirmasi | Superuser; POST dengan CSRF; GET tidak menghapus |
 | `/api/projects/` | Data proyek berformat JSON, filter `?title=...` | Django serializer |
 | `/api/projects/xml/` | Percobaan format XML, filter `?title=...` | Django serializer |
 | `/admin/` | Pengelolaan pengalaman, prestasi, dan proyek | Django admin; perlu login |
@@ -87,7 +87,7 @@ URL gambar boleh memakai URL publik langsung. Jika memakai Google Drive, unggah 
 
 Konfigurasi `CSRF_TRUSTED_ORIGINS` sudah memakai `https://noe-andrew-myportofolio.pws.cs.ui.ac.id` tanpa slash penutup. Origin terdiri dari skema dan host, bukan path halaman; lihat [pengaturan CSRF Django](https://docs.djangoproject.com/en/5.2/ref/settings/#csrf-trusted-origins). Token CSRF tetap diwajibkan pada semua form POST.
 
-Seperti tahap tutorial, form publik ini belum memakai autentikasi pemilik: pengunjung dapat menambah dan menghapus proyek melalui form. Tip kode rahasia `.env`/header/password pada akhir tutorial bersifat opsional dan belum diaktifkan; CSRF sendiri bukan pembatas akses pemilik.
+Tambah dan hapus proyek sekarang memerlukan login sebagai superuser. Pengguna biasa memperoleh 403 ketika mengakses aksi tersebut; pengunjung yang belum login diarahkan ke halaman login. CSRF tetap memvalidasi form POST dan tidak menggantikan pemeriksaan hak akses. Endpoint edit `/projects/<uuid>/edit/` masih dapat diakses publik pada implementasi saat ini; pembatasan superuser di atas berlaku untuk tambah dan hapus.
 
 Yang masih membutuhkan tindakan pemilik: isi proyek dan gambar pribadi, unggah/atur berbagi Google Drive bila digunakan, deploy perubahan ke PWS serta periksa Logs dan migrasi di sana, dan kumpulkan bukti/tugas pada platform kuliah bila diminta. Pengujian lokal tidak memverifikasi deployment atau pengumpulan.
 
@@ -99,9 +99,18 @@ Yang masih membutuhkan tindakan pemilik: isi proyek dan gambar pribadi, unggah/a
 .\env\Scripts\python.exe manage.py test --verbosity 2
 ```
 
-Suite berisi 43 tes: profil dan kontak, navigasi bersama, URL tidak ditemukan, model/status pengalaman, prestasi, serta Projects. Tes Projects mencakup validasi dan batas panjang field, POST kosong/invalid, tambah dan hapus, pencarian, serialisasi/deserialisasi JSON, XML, kondisi kosong, escaping, pesan sukses, dan CSRF dengan origin PWS maupun origin tidak tepercaya. Tes menggunakan database pengujian tersendiri; pembersihan data seed dalam tes tidak menghapus data portofolio lokal.
+Suite Django mencakup profil dan kontak, navigasi bersama, URL tidak ditemukan, model/status pengalaman, prestasi, serta Projects. Tes Projects mencakup validasi dan batas panjang field, POST kosong/invalid, tambah dan hapus, pencarian, serialisasi/deserialisasi JSON, XML, kondisi kosong, escaping, pesan sukses, dan CSRF dengan origin PWS maupun origin tidak tepercaya. Tes menggunakan database pengujian tersendiri; pembersihan data seed dalam tes tidak menghapus data portofolio lokal. Jumlah tes terkini ditampilkan oleh runner.
 
 Saat mengubah teks antarmuka, sesuaikan ekspektasi tes dengan perilaku yang dimaksud. Halaman profil menggunakan bahasa Inggris; form dan aksi Projects mengikuti bahasa Indonesia pada tutorial. Data seed perlu diisolasi agar tes pengalaman selesai tidak ikut membaca pengalaman lain yang masih berlangsung.
+
+Untuk tutorial Selenium, instal dependency pengembangan dan jalankan suite browser terpisah:
+
+```powershell
+.\env\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\env\Scripts\python.exe test_e2e.py --headless
+```
+
+Hapus `--headless` untuk melihat Chrome dikendalikan otomatis, atau tambahkan `--browser edge` / `--browser firefox`. Skrip menyiapkan server loopback dan database pengujian sementara; tidak perlu `runserver` manual, password baru, atau perubahan PWS. `E2E_USER_PASSWORD` dan `E2E_ADMIN_PASSWORD` dapat diisi secara opsional di `.env`; tanpa keduanya password uji dibuat acak. Selenium Manager memerlukan internet untuk mengunduh driver yang belum tersedia. `manage.py test` tetap dapat berjalan tanpa Selenium. Lima alur browser serta langkah intersepsi CSRF manual dijelaskan di [panduan Selenium dan Burp Suite](docs/browser-security-testing.md).
 
 ## Perkembangan mingguan
 
@@ -111,6 +120,7 @@ Saat mengubah teks antarmuka, sesuaikan ekspektasi tes dengan perilaku yang dima
 | Tutorial 2 | Aplikasi `main`, model `Experience`, migrasi, context profil, routing, dan pengujian |
 | Tugas 2 | Model `Achievement`, migrasi struktur dan data awal, halaman dinamis, admin, pengujian, dan template bersama |
 | Tutorial form dan data delivery | Model/form `Project`, tambah/cari/hapus, JSON/XML, konfirmasi, pesan sukses, dan CSRF |
+| Tutorial Selenium dan Burp Suite | Otomasi login, cookie, akses superuser, logout; tes CSRF dan panduan intersepsi request lokal |
 
 Saat mengambil perubahan Tugas 2 dari Git, jalankan ulang instalasi dependency bila `requirements.txt` berubah, kemudian `migrate` dan `collectstatic --noinput` sebelum menyalakan server. Tidak perlu membuat migrasi baru hanya untuk menambahkan objek melalui admin.
 

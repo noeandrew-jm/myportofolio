@@ -10,9 +10,11 @@
                 <p class="hero-kicker">Karya yang saya bangun</p>
                 <div class="project-header">
                     <h1>Projects</h1>
+                    {% if user.is_superuser %} 
                     <a href="{% url 'main:create_project' %}" class="button project-add-button">
                         <span aria-hidden="true">+</span> Tambah Proyek
                     </a>
+                    {% endif %} 
                 </div>
             </div>
             <img class="showcase-decoration showcase-decoration--right showcase-decoration--lego" src="{% static 'image/about/lego.png' %}" alt="" aria-hidden="true" width="180" height="180" draggable="false">
@@ -52,7 +54,10 @@
                             <a href="{{ project.project_url }}" class="button">Lihat Proyek</a>
                         {% endif %}
                         <a href="{% url 'main:update_project' project.id %}" class="button button-secondary" aria-label="Edit {{ project.title }}">Edit Proyek</a>
-                        {% include "components/project_delete_modal.html" with project=project %}
+                        {% include "components/projects_star.html" with project=project %}
+                        {% if user.is_superuser %}
+                            {% include "components/project_delete_modal.html" with project=project %}
+                        {% endif %}     
                     </div>
                 </article>
             {% empty %}

@@ -1,6 +1,7 @@
 from html.parser import HTMLParser
 from urllib.parse import urlsplit
 
+from django.contrib.auth import get_user_model
 from django.contrib.staticfiles import finders
 from django.test import TestCase
 from django.urls import reverse
@@ -39,6 +40,10 @@ class NavigationParser(HTMLParser):
 
 
 class MainTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = get_user_model().objects.create_superuser(username="navigation_admin")
+
     def setUp(self):
         # Data migrations also run in the test database. Isolate each test from
         # the portfolio's seeded entries without touching the real database.
@@ -122,7 +127,7 @@ class MainTest(TestCase):
             self.assertNotIn("aria-current", attrs)
 
     def test_all_public_pages_share_layout_and_navigation(self):
-        for route in ("show_main", "show_experience", "show_achievements", "show_projects", "create_project"):
+        for route in ("show_main", "show_experience", "show_achievements", "show_projects"):
             with self.subTest(route=route):
                 response = self.client.get(reverse(f"main:{route}"))
                 self.assertEqual(response.status_code, 200)
@@ -145,15 +150,19 @@ class MainTest(TestCase):
             ("create_project", "show_projects"),
         ):
             with self.subTest(route=route):
+                if route == "create_project":
+                    self.client.force_login(self.admin)
+                auth_destinations = ("logout",) if route == "create_project" else ("login", "register")
+                expected_destinations = destinations + auth_destinations
                 response = self.client.get(reverse(f"main:{route}"))
                 document = NavigationParser()
                 document.feed(response.content.decode())
                 self.assertEqual(len(document.navigations), 1)
                 links = document.navigations[0]
-                self.assertEqual(len(links), 4)
+                self.assertEqual(len(links), len(expected_destinations))
                 self.assertEqual(
                     [urlsplit(link["href"]).path for link in links],
-                    [reverse(f"main:{destination}") for destination in destinations],
+                    [reverse(f"main:{destination}") for destination in expected_destinations],
                 )
                 for link in links:
                     classes = link.get("class", "").split()
@@ -169,7 +178,8 @@ class MainTest(TestCase):
                         self.assertNotIn("aria-current", link)
                 self.assertEqual(document.asset_paths.count("/static/js/liquid-glass.js"), 1)
                 self.assertEqual(len(document.glass_elements), 4 if route == "show_main" else 1)
-                self.assertContains(response, 'class="glass-button__label"', count=7 if route == "show_main" else 4)
+                label_count = len(expected_destinations) + (3 if route == "show_main" else 0)
+                self.assertContains(response, 'class="glass-button__label"', count=label_count)
                 # Effects must not replace the links or hide their accessible labels.
                 self.assertNotContains(response, 'class="glass-button__label" aria-hidden')
 

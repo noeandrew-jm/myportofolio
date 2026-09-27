@@ -1,3 +1,5 @@
+from django.contrib.auth.decorators import login_required  # Tambahkan baris ini
+from django.core.exceptions import PermissionDenied        # Tambahkan baris ini
 from django.contrib import messages
 from django.core import serializers
 from django.http import HttpResponse
@@ -51,10 +53,13 @@ def get_projects_json(request):
     projects = Project.objects.all()
     if title_query:
         projects = projects.filter(title__icontains=title_query)
-
+    
     return HttpResponse(
         serializers.serialize("json", projects), content_type="application/json"
     )
+    projects_json = serializers.serialize(
+        "json", projects, use_natural_foreign_keys=True  # Tambahkan argumen ini
+)
 
 
 @require_GET
@@ -84,7 +89,10 @@ def show_projects(request):
 
 
 @require_http_methods(["GET", "POST"])
+@login_required(login_url="/login/")  
 def create_project(request):
+    if not request.user.is_superuser:
+        raise PermissionDenied
     form = ProjectForm(request.POST if request.method == "POST" else None)
 
     if request.method == "POST" and form.is_valid():
@@ -124,7 +132,10 @@ def update_project(request, project_id):
 
 
 @require_http_methods(["GET", "POST"])
+@login_required(login_url="/login/")  
 def delete_project(request, project_id):
+    if not request.user.is_superuser:
+        raise PermissionDenied
     project = get_object_or_404(Project, pk=project_id)
     if request.method == "POST":
         project.delete()
@@ -140,7 +151,7 @@ def register(request):
         return redirect("main:login")
 
     context = {
-        "name": "Burhan",
+        "name": "Noe Andrew",
         "form": form,
     }
     return render(request, "register.html", context)
@@ -163,4 +174,21 @@ def login_user(request):
 
 def logout_user(request):
     logout(request)
-    return redirect("main:show_main")
+    response = redirect("main:show_main")
+    response.delete_cookie('last_login')
+    return response
+
+# Tanpa cek is_superuser: semua akun yang sudah login boleh memberi star
+@login_required(login_url="/login/")
+def toggle_star(request, project_id):
+    project = get_object_or_404(Project, pk=project_id)
+
+    if request.method == "POST":
+        # Kalau akun ini sudah pernah memberi star, batalkan star-nya.
+        # Kalau belum, tambahkan star.
+        if request.user in project.starred_by.all():
+            project.starred_by.remove(request.user)
+        else:
+            project.starred_by.add(request.user)
+
+    return redirect("main:show_projects")
