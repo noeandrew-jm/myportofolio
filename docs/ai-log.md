@@ -77,3 +77,20 @@ Verifikasi lokal pada sesi ini:
 - Selenium menggulir tombol submit ke tengah layar sebelum klik agar animasi smooth scroll tidak menyebabkan klik di luar viewport. Browser, server uji, dan database sementara dibersihkan saat selesai.
 
 Interaksi pada antarmuka Burp dan screenshot untuk tugas memerlukan tindakan pemilik jika diminta oleh pengajar. Demonstrasi Burp belum dijalankan. Tutorial lokal ini tidak memerlukan deployment PWS, dan tidak membuktikan deployment atau pengumpulan tugas sudah dilakukan.
+
+## Audit dan penyelesaian checklist Tugas 4 — 28 September 2026
+
+Prompt pemilik proyek: "kerjakan dan pastikan keseluruhan checklist sudah terisi dan benar dan nilai 4/4". Sebelumnya pemilik meminta sesi terakhir login ditempatkan di bawah tautan proyek, desain NPM/Program dipertahankan, tombol Login/Register mendapat liquid glass, dan navbar mobile diganti menu tiga titik.
+
+GitHub Copilot mengaudit view, model, migration, template, API, dokumentasi, dan tes terhadap checklist. Bantuan mencakup penempatan sesi profil, glass Login/Register, disclosure navbar mobile, penyelarasan tes lama agar mengikuti matriks authorization dan allowlist API yang sebenarnya, tes star yang memverifikasi login, POST-only, CSRF, count, dan status, serta penggantian secret tetap dengan secret lokal sementara dan `SECRET_KEY` wajib dari environment produksi. README dan log ini diperbarui untuk mencatat bantuan AI dan batas verifikasinya.
+
+Verifikasi lokal setelah perubahan:
+
+- `manage.py test --verbosity 2`: seluruh 79 tes lulus.
+- `test_e2e.py --headless`: alur login, role, CSRF, operasi superuser, dan logout lulus pada database sementara.
+- `manage.py check`: tidak ada masalah.
+- `manage.py makemigrations --check --dry-run`: tidak ada perubahan model tanpa migration.
+- Migration `0008_create_editor_group` diterapkan pada SQLite lokal dan grup `Editor` terverifikasi ada. Database PWS tidak diakses atau diubah.
+- Pemeriksaan browser mobile 390 px sebelumnya mengonfirmasi menu terbuka tanpa overflow, sesi di bawah tautan proyek, dan dua tombol auth memiliki layer liquid glass.
+
+PWS harus diberi `SECRET_KEY` acak baru melalui Environs sebelum menjalankan versi ini; nilai rahasia lama yang pernah dipakai harus dirotasi. Migration juga perlu diterapkan terpisah di PWS. Worktree lokal masih harus ditinjau, di-commit, dan di-push oleh pemilik; GitHub, deployment, status publik repositori, dan pengumpulan SCELE tidak diverifikasi. Nilai tugas tetap ditentukan penilai, bukan dijamin oleh AI.

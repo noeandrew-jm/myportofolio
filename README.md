@@ -45,10 +45,14 @@ Buka <http://127.0.0.1:8000/>. Biarkan terminal server tetap berjalan; tekan `Ct
 | `/experience/` | Daftar pengalaman, kategori, dan status | Model `Experience` |
 | `/achievements/` | Daftar prestasi, penghargaan, dan gambar | Model `Achievement` |
 | `/projects/` | Daftar proyek dan pencarian `?title=...` | Model `Project`, melalui serialisasi/deserialisasi JSON |
+| `/projects/<uuid>/` | Detail proyek, jumlah star, dan status star pengguna | Publik; model `Project` |
 | `/projects/add/` | Form tambah proyek | Superuser; `ProjectForm` dengan validasi dan CSRF |
+| `/projects/<uuid>/edit/` | Form ubah proyek | Anggota grup `Editor` atau superuser; `ProjectForm` dan CSRF |
 | `/projects/<uuid>/delete/` | Hapus proyek lewat konfirmasi | Superuser; POST dengan CSRF; GET tidak menghapus |
-| `/api/projects/` | Data proyek berformat JSON, filter `?title=...` | Django serializer |
-| `/api/projects/xml/` | Percobaan format XML, filter `?title=...` | Django serializer |
+| `/projects/<uuid>/star/` | Memberi atau membatalkan star | Pengguna login; hanya POST dengan CSRF |
+| `/api/projects/` | Data proyek berformat JSON, filter `?title=...` | Publik; Django serializer dengan daftar field publik |
+| `/api/projects/xml/` | Percobaan format XML, filter `?title=...` | Publik; daftar field publik yang sama dengan JSON |
+| `/register/`, `/login/`, `/logout/` | Registrasi, login, dan logout | Autentikasi dan sesi bawaan Django |
 | `/admin/` | Pengelolaan pengalaman, prestasi, dan proyek | Django admin; perlu login |
 
 `migrate` membuat tabel dan memasukkan dua pengalaman serta dua prestasi awal dari konten portofolio yang sudah ada. Migrasi data hanya dijalankan sekali; perubahan selanjutnya bisa dilakukan melalui admin. Database lokal tidak disertakan di Git.
@@ -81,15 +85,40 @@ http://127.0.0.1:8000/api/projects/?title=portfolio
 http://127.0.0.1:8000/api/projects/xml/?title=portfolio
 ```
 
-JSON berbentuk daftar objek Django dengan `model`, `pk`, dan `fields`. Database kosong menghasilkan `[]`; judul tanpa hasil tidak menyebabkan error. Endpoint API ini hanya membaca data.
+JSON berbentuk daftar objek Django dengan `model`, `pk`, dan `fields`. Field publik dibatasi pada `title`, `description`, `tech_stack`, `project_url`, dan `project_image_url`; UUID proyek tetap berada di `pk`. Relasi `starred_by`, ID pengguna pemberi star, username, email, dan data autentikasi tidak dikirim. Pembatasan yang sama diterapkan pada XML. Database kosong menghasilkan `[]`; judul tanpa hasil tidak menyebabkan error. Endpoint API ini hanya membaca data. Pemilihan field secara eksplisit memakai dukungan [subset field pada serializer Django](https://docs.djangoproject.com/en/5.2/topics/serialization/#subset-of-fields).
 
 URL gambar boleh memakai URL publik langsung. Jika memakai Google Drive, unggah gambar milik sendiri, atur **Anyone with the link → Viewer**, ambil ID berkas, kemudian isi field URL Gambar Proyek dengan `https://drive.google.com/thumbnail?id=FILE_ID&sz=w1000`. Form menyimpan URL, bukan mengunggah berkas. Akses dan keberhasilan pemuatan gambar eksternal bergantung pada penyedia gambar.
 
 Konfigurasi `CSRF_TRUSTED_ORIGINS` sudah memakai `https://noe-andrew-myportofolio.pws.cs.ui.ac.id` tanpa slash penutup. Origin terdiri dari skema dan host, bukan path halaman; lihat [pengaturan CSRF Django](https://docs.djangoproject.com/en/5.2/ref/settings/#csrf-trusted-origins). Token CSRF tetap diwajibkan pada semua form POST.
 
-Tambah dan hapus proyek sekarang memerlukan login sebagai superuser. Pengguna biasa memperoleh 403 ketika mengakses aksi tersebut; pengunjung yang belum login diarahkan ke halaman login. CSRF tetap memvalidasi form POST dan tidak menggantikan pemeriksaan hak akses. Endpoint edit `/projects/<uuid>/edit/` masih dapat diakses publik pada implementasi saat ini; pembatasan superuser di atas berlaku untuk tambah dan hapus.
+Tambah dan hapus proyek memerlukan superuser; edit memerlukan anggota grup `Editor` atau superuser. Pemeriksaan dilakukan pada server, termasuk ketika URL diakses langsung atau POST dikirim tanpa melalui tombol. Pengguna yang login tetapi tidak berhak memperoleh HTTP 403. Pengunjung yang belum login diarahkan ke login saat mengakses aksi yang memerlukan akun; POST juga harus lolos pemeriksaan CSRF. Tombol aksi hanya ditampilkan untuk peran yang sesuai.
 
 Yang masih membutuhkan tindakan pemilik: isi proyek dan gambar pribadi, unggah/atur berbagi Google Drive bila digunakan, deploy perubahan ke PWS serta periksa Logs dan migrasi di sana, dan kumpulkan bukti/tugas pada platform kuliah bila diminta. Pengujian lokal tidak memverifikasi deployment atau pengumpulan.
+
+## Tugas 4: autentikasi, Editor, dan star
+
+Bagian portofolio yang dipilih untuk otorisasi adalah **Projects**. Daftar, pencarian, detail, JSON, dan XML dapat dibaca tanpa login. Registrasi membuat pengguna biasa; memilih peran tidak disediakan pada form publik.
+
+| Peran | Baca daftar/detail | Beri/batalkan star | Tambah | Edit | Hapus |
+| --- | --- | --- | --- | --- | --- |
+| Pengunjung tanpa login | Ya | Login dahulu | Login dahulu | Login dahulu | Login dahulu |
+| Pengguna biasa | Ya | Ya | 403 | 403 | 403 |
+| Anggota grup `Editor` | Ya | Ya | 403 | Ya | 403 |
+| Pemilik / superuser | Ya | Ya | Ya | Ya | Ya |
+
+Untuk menyiapkan peran setelah mengambil perubahan Tugas 4:
+
+1. Jalankan `python manage.py migrate`. Migrasi `0007_project_starred_by` membuat relasi star; migrasi `0008` menyiapkan grup `Editor`. Tidak ada akun nyata yang otomatis dinaikkan hak aksesnya.
+2. Jika belum ada pemilik lokal, jalankan `python manage.py createsuperuser` dan isi kredensial melalui prompt.
+3. Login sebagai pemilik di `/admin/`, buka **Authentication and Authorization → Users** (`/admin/auth/user/`), dan pilih akun yang memang akan menjadi editor. Akun dapat dibuat sebelumnya melalui `/register/`.
+4. Pada bagian **Groups**, pindahkan **Editor** ke grup terpilih, lalu simpan. Tidak perlu mengaktifkan **Staff status** atau **Superuser status** untuk editor. Jika grup pernah dihapus, buat ulang dengan nama persis `Editor` melalui `/admin/auth/group/`.
+5. Login menggunakan akun editor pada aplikasi, buka `/projects/`, dan gunakan **Edit Proyek** pada proyek yang tersedia. Tambah dan hapus tetap menjadi hak pemilik. Untuk mencabut hak editor, keluarkan akun dari grup tersebut di admin.
+
+Implementasi memeriksa keanggotaan grup `Editor`; nama ini peka kapitalisasi. Editor mengubah konten melalui halaman aplikasi dan tidak memerlukan akses admin. Django menyediakan [grup untuk mengelompokkan pengguna dan hak akses](https://docs.djangoproject.com/en/5.2/topics/auth/default/#groups); pemilik menentukan sendiri akun yang dipercaya. Penetapan grup di lokal tidak mengubah database PWS sehingga perlu dilakukan terpisah setelah deployment bila editor juga diperlukan di sana.
+
+`Project.starred_by` menggunakan `ManyToManyField` ke User. Satu pengguna mempunyai maksimal satu relasi star per proyek; POST berikutnya membatalkannya. Form star menyertakan `{% csrf_token %}`, sedangkan GET tidak mengubah star. Daftar dan detail menampilkan total star serta status pengguna yang sedang login tanpa menampilkan identitas pemberi star. Pengunjung memperoleh tautan login yang membawa kembali ke halaman asal. Parameter `next` dibatasi ke tujuan pada host aplikasi agar login tidak mengarahkan pengguna ke situs eksternal.
+
+Checklist implementasi dan pemeriksaan manual empat peran tersedia di [checklist tugas](docs/task-checklist.md).
 
 ## Pengujian
 
@@ -99,7 +128,7 @@ Yang masih membutuhkan tindakan pemilik: isi proyek dan gambar pribadi, unggah/a
 .\env\Scripts\python.exe manage.py test --verbosity 2
 ```
 
-Suite Django mencakup profil dan kontak, navigasi bersama, URL tidak ditemukan, model/status pengalaman, prestasi, serta Projects. Tes Projects mencakup validasi dan batas panjang field, POST kosong/invalid, tambah dan hapus, pencarian, serialisasi/deserialisasi JSON, XML, kondisi kosong, escaping, pesan sukses, dan CSRF dengan origin PWS maupun origin tidak tepercaya. Tes menggunakan database pengujian tersendiri; pembersihan data seed dalam tes tidak menghapus data portofolio lokal. Jumlah tes terkini ditampilkan oleh runner.
+Suite Django mencakup profil dan kontak, navigasi bersama, URL tidak ditemukan, model/status pengalaman, prestasi, serta Projects. Tes Projects mencakup validasi form, CRUD sesuai empat peran, daftar/detail publik, kontrol aksi, star/unstar, pencarian, format JSON/XML tanpa identitas pemberi star, kondisi kosong, escaping, pesan sukses, tujuan login, dan CSRF. Tes menggunakan database pengujian tersendiri; pembersihan data seed dalam tes tidak menghapus data portofolio lokal. Jumlah tes terkini ditampilkan oleh runner.
 
 Saat mengubah teks antarmuka, sesuaikan ekspektasi tes dengan perilaku yang dimaksud. Halaman profil menggunakan bahasa Inggris; form dan aksi Projects mengikuti bahasa Indonesia pada tutorial. Data seed perlu diisolasi agar tes pengalaman selesai tidak ikut membaca pengalaman lain yang masih berlangsung.
 
@@ -110,7 +139,7 @@ Untuk tutorial Selenium, instal dependency pengembangan dan jalankan suite brows
 .\env\Scripts\python.exe test_e2e.py --headless
 ```
 
-Hapus `--headless` untuk melihat Chrome dikendalikan otomatis, atau tambahkan `--browser edge` / `--browser firefox`. Skrip menyiapkan server loopback dan database pengujian sementara; tidak perlu `runserver` manual, password baru, atau perubahan PWS. `E2E_USER_PASSWORD` dan `E2E_ADMIN_PASSWORD` dapat diisi secara opsional di `.env`; tanpa keduanya password uji dibuat acak. Selenium Manager memerlukan internet untuk mengunduh driver yang belum tersedia. `manage.py test` tetap dapat berjalan tanpa Selenium. Lima alur browser serta langkah intersepsi CSRF manual dijelaskan di [panduan Selenium dan Burp Suite](docs/browser-security-testing.md).
+Hapus `--headless` untuk melihat Chrome dikendalikan otomatis, atau tambahkan `--browser edge` / `--browser firefox`. Skrip menyiapkan server loopback dan database pengujian sementara; tidak perlu `runserver` manual, password baru, atau perubahan PWS. Password uji dibuat acak bila tidak disediakan. Selenium Manager memerlukan internet untuk mengunduh driver yang belum tersedia. `manage.py test` tetap dapat berjalan tanpa Selenium. Alur browser, konfigurasi password uji opsional, serta langkah intersepsi CSRF manual dijelaskan di [panduan Selenium dan Burp Suite](docs/browser-security-testing.md). Jalankan kedua suite setelah mengambil perubahan Tugas 4; hasil tes pada versi sebelumnya bukan verifikasi versi yang baru.
 
 ## Perkembangan mingguan
 
@@ -121,8 +150,11 @@ Hapus `--headless` untuk melihat Chrome dikendalikan otomatis, atau tambahkan `-
 | Tugas 2 | Model `Achievement`, migrasi struktur dan data awal, halaman dinamis, admin, pengujian, dan template bersama |
 | Tutorial form dan data delivery | Model/form `Project`, tambah/cari/hapus, JSON/XML, konfirmasi, pesan sukses, dan CSRF |
 | Tutorial Selenium dan Burp Suite | Otomasi login, cookie, akses superuser, logout; tes CSRF dan panduan intersepsi request lokal |
+| Tugas 4 | Grup Editor, otorisasi empat peran di server dan template, detail publik, star dengan CSRF, JSON/XML tanpa identitas pengguna, serta pengujian akses |
 
 Saat mengambil perubahan Tugas 2 dari Git, jalankan ulang instalasi dependency bila `requirements.txt` berubah, kemudian `migrate` dan `collectstatic --noinput` sebelum menyalakan server. Tidak perlu membuat migrasi baru hanya untuk menambahkan objek melalui admin.
+
+Untuk Tugas 3, jalankan `migrate` sebelum mencoba form dan API Projects. Untuk Tutorial 04/Tugas 4, jalankan kembali `migrate`, tetapkan anggota grup `Editor` melalui admin sesuai panduan di atas, lalu jalankan pemeriksaan Django dan Selenium. Dependensi Selenium berada di `requirements-dev.txt` sehingga perlu diinstal terpisah pada lingkungan pengembangan.
 
 ### Tugas 1
 
@@ -142,7 +174,7 @@ Saat mengambil perubahan Tugas 2 dari Git, jalankan ulang instalasi dependency b
 
 ## Deployment dan pengumpulan
 
-URL proyek: <https://noe-andrew-myportofolio.pws.cs.ui.ac.id/>. Database PWS terpisah dari SQLite lokal. Atur environment produksi melalui tab Environs PWS sesuai konfigurasi proyek, termasuk `PRODUCTION=True`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, dan `SCHEMA`. Jangan masukkan nilai kredensial ke Git atau README.
+URL proyek: <https://noe-andrew-myportofolio.pws.cs.ui.ac.id/>. Database PWS terpisah dari SQLite lokal. Atur environment produksi melalui tab Environs PWS sesuai konfigurasi proyek, termasuk `PRODUCTION=True`, `SECRET_KEY`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, dan `SCHEMA`. Buat `SECRET_KEY` baru secara acak dan rahasia; jangan masukkan nilainya ke Git atau README.
 
 Jika Experience, Achievements, dan Projects gagal dengan `invalid integer value "<5432>" for connection option "port"`, perbaiki `DB_PORT=5432` pada **Environs PWS**. Periksa juga nilai database lain agar memakai kredensial asli tanpa pembungkus contoh `<...>`. Lihat [panduan perbaikan database PWS](docs/pws-database.md) untuk langkah lengkap. Mengedit `.env.prod` lokal atau melakukan push Git saja tidak memperbarui Environs.
 
@@ -155,17 +187,25 @@ git push origin HEAD:main
 git push pws HEAD:master
 ```
 
-Pantau status dan Logs PWS hingga aplikasi berjalan; pastikan migrasi berhasil dan buka `/`, `/experience/`, `/achievements/`, serta `/static/css/style.css`. Keberhasilan lokal atau push GitHub tidak membuktikan deployment PWS sudah diperbarui. Proses deployment PWS pada tutorial menjalankan migrasi sebelum server siap.
+Pantau status dan Logs PWS hingga aplikasi berjalan; pastikan migrasi berhasil dan buka `/`, `/experience/`, `/achievements/`, `/projects/`, detail salah satu proyek, `/api/projects/`, serta `/static/css/style.css`. Periksa kembali hak empat peran pada deployment memakai akun milik sendiri. Keberhasilan lokal atau push GitHub tidak membuktikan deployment PWS sudah diperbarui. Proses deployment PWS pada tutorial menjalankan migrasi sebelum server siap.
 
 Pengumpulan Tugas 2 menggunakan tautan **commit final yang sudah di-push**, bukan hanya tautan repositori. Ambil hash dengan `git rev-parse HEAD`, kemudian gunakan format `https://github.com/noeandrew-jm/myportofolio/commit/<hash>` dan buka tanpa login untuk memastikan akses publik. Deadline pada dokumen tugas adalah **14 September 2026, 23.59 WIB**. Tautan tersebut tetap harus dikumpulkan melalui slot SCELE yang benar. Pemilik proyek menyatakan Tutorial 2 sudah dikumpulkan; pernyataan ini bukan verifikasi otomatis terhadap SCELE.
+
+Untuk **Individual Assignment 4**, tenggat pada instruksi yang dilampirkan adalah **Senin, 28 September 2026, pukul 23.59 WIB**; deadline **Tutorial 04** juga dipindahkan ke waktu yang sama. Siapkan commit akhir dengan pesan deskriptif mengikuti Conventional Commits, push sebelum tenggat, pastikan repositori GitHub publik, dan kirim tautan commit melalui slot SCELE yang sesuai. Commit yang di-push setelah tenggat tidak diterima menurut instruksi tugas. Pengerjaan melalui AI pada sesi Tugas 4 tidak melakukan commit, push, deployment, atau pengumpulan atas nama pemilik.
 
 ## Penggunaan AI
 
 Proyek ini menggunakan bantuan **OpenAI Codex**. Pada sesi audit dan penyelesaian checklist, bantuan mencakup pemeriksaan instruksi tugas terhadap kode, implementasi model dan migrasi `Achievement`, pemindahan konten lama ke database, perbaikan HTML dan tautan, penyamaan template navbar/footer, penyesuaian serta penambahan tes, dan penyusunan dokumentasi ini.
 
+Pada Tugas 4, Codex membantu membandingkan kode dengan lampiran tugas, membatasi edit untuk grup `Editor`/superuser, membuat detail proyek publik, membatasi field API agar relasi pengguna tidak bocor, memperbaiki interaksi star dan tujuan setelah login, serta menyesuaikan pengujian dan dokumentasi. Strategi prompting memakai instruksi tugas lengkap beserta konteks repositori, lalu memeriksa tiap persyaratan terhadap perilaku server, template, dan database. Perubahan dan hasil pemeriksaan dicatat di log; hasil yang belum dijalankan tidak dianggap lulus.
+
+Pada 28 September 2026, GitHub Copilot membantu memindahkan label sesi login ke bawah tautan proyek, menambahkan glass Login/Register dan menu navigasi mobile, mengaudit checklist, menyelaraskan tes regresi dengan aturan akses/API yang berlaku, menambahkan tes star dan CSRF, serta mewajibkan `SECRET_KEY` dari environment produksi. Suite lokal dan Selenium dijalankan kembali setelah perubahan; detail hasil dan batas verifikasi dicatat di [log bantuan AI](docs/ai-log.md).
+
 Strategi yang digunakan adalah memberi konteks dokumen tugas dan meminta audit terlebih dahulu, lalu meminta pengerjaan bagian yang bisa diselesaikan serta menanyakan informasi yang belum tersedia. URL LinkedIn diberikan langsung oleh pemilik proyek. Nama, foto, bio, serta isi pengalaman dan prestasi berasal dari data proyek yang sudah ada; AI tidak memverifikasi klaim prestasi atau membuat prestasi baru.
 
 Keterbatasan AI terlihat pada kebutuhan memeriksa hasilnya: server yang mengembalikan HTTP 200 belum berarti seluruh checklist atau test lulus, migrasi seed dapat memengaruhi isolasi test, dan akses lokal berbeda dari deployment. Pengujian Django dan pemeriksaan browser digunakan untuk mengevaluasi perubahan. Jawaban refleksi Tugas 2 disusun dengan bantuan AI berdasarkan implementasi ini dan perlu dibaca serta dipahami oleh pemilik proyek sebelum dikumpulkan; tidak diklaim sebagai tulisan tanpa bantuan AI.
+
+Audit Tugas 4 menemukan dua contoh keterbatasan implementasi sebelumnya: tombol yang disembunyikan tidak cukup jika endpoint edit masih publik, dan serialisasi seluruh field dapat memasukkan ID pemberi star setelah relasi baru ditambahkan. Karena itu, pemeriksaan akses harus mencakup request langsung serta isi JSON/XML. AI tidak mengetahui akun mana yang layak diberi hak editor dan tidak dapat menyimpulkan deployment atau pengumpulan berhasil dari tes lokal. Pemilik masih perlu menetapkan akun editor, memahami perubahan, serta menangani GitHub/PWS/SCELE. Tidak ada klaim bahwa pemilik sudah melakukan perbaikan manual atau meninjau seluruh hasil pada sesi ini.
 
 Ringkasan prompt dan keputusan yang benar-benar tersedia pada sesi ini ada di [log bantuan AI](docs/ai-log.md). Riwayat bantuan sebelum sesi ini tidak direkonstruksi atau dibuat-buat.
 

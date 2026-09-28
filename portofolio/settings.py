@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 from pathlib import Path
 import os
 from django.core.exceptions import ImproperlyConfigured
+from django.core.management.utils import get_random_secret_key
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -24,12 +25,17 @@ load_dotenv(BASE_DIR / '.env', override=False)
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-r$qbe_b)b$7a3ema+fle*xd+(!=k_8m+ya+h91_mc!dx3-2u8*'
-
 # SECURITY WARNING: don't run with debug turned on in production!
 PRODUCTION = os.getenv('PRODUCTION', 'False').strip().lower() == 'true'
 DEBUG = not PRODUCTION
+
+SECRET_KEY = os.getenv("SECRET_KEY", "").strip()
+if PRODUCTION and not SECRET_KEY:
+    raise ImproperlyConfigured(
+        "SECRET_KEY wajib diisi di PWS Environs dengan nilai acak yang rahasia."
+    )
+if not SECRET_KEY:
+    SECRET_KEY = get_random_secret_key()
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "noe-andrew-myportofolio.pws.cs.ui.ac.id"]
 

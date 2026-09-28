@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ project.title }} - {{ name }}{% endblock title %}
+{% block content %}
+<main>
+    <section class="page-intro">
+        <div class="container">
+            <p class="hero-kicker">Detail proyek</p>
+            <div class="project-header">
+                <h1>{{ project.title }}</h1>
+                {% if user.is_superuser %}
+                    <a href="{% url 'main:create_project' %}" class="button project-add-button">
+                        <span aria-hidden="true">+</span> Tambah Proyek
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+    <section class="container projects-section" aria-label="Detail proyek">
+        <article class="project-card project-detail">
+            {% if project.project_image_url %}
+                <img src="{{ project.project_image_url }}" alt="Gambar {{ project.title }}"
+                     class="project-image">
+            {% endif %}
+            <h2>Deskripsi</h2>
+            <p class="project-description">{{ project.description }}</p>
+            <h2>Teknologi</h2>
+            <p class="content-item-label">{{ project.tech_stack }}</p>
+            <div class="project-card-actions">
+                {% if project.project_url %}
+                    <a href="{{ project.project_url }}" class="button">Lihat Proyek</a>
+                {% endif %}
+                {% if can_edit_projects %}
+                    <a href="{% url 'main:update_project' project.id %}" class="button button-secondary" aria-label="Edit {{ project.title }}">Edit Proyek</a>
+                {% endif %}
+                {% include "components/projects_star.html" with project=project %}
+                {% if user.is_superuser %}
+                    {% include "components/project_delete_modal.html" with project=project %}
+                {% endif %}
+                <a href="{% url 'main:show_projects' %}" class="button button-secondary">Kembali ke Projects</a>
+            </div>
+        </article>
+    </section>
+</main>
+{% endblock content %}

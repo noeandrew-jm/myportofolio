@@ -14,6 +14,7 @@ class DatabaseSettingsTests(SimpleTestCase):
     def production_environment(self, **overrides):
         environment = {
             "PRODUCTION": "True",
+            "SECRET_KEY": "test-only-secret-key",
             "DB_NAME": "portfolio",
             "DB_USER": "portfolio_owner",
             "DB_PASSWORD": " password <with> symbols! ",
@@ -38,6 +39,7 @@ class DatabaseSettingsTests(SimpleTestCase):
 
         self.assertTrue(settings["PRODUCTION"])
         self.assertFalse(settings["DEBUG"])
+        self.assertEqual(settings["SECRET_KEY"], environment["SECRET_KEY"])
         self.assertEqual(database["ENGINE"], "django.db.backends.postgresql")
         self.assertEqual(database["NAME"], environment["DB_NAME"])
         self.assertEqual(database["USER"], environment["DB_USER"])
@@ -96,6 +98,21 @@ class DatabaseSettingsTests(SimpleTestCase):
 
                     self.assertIn(name, str(error.exception))
 
+    def test_production_requires_secret_key(self):
+        for value in (None, ""):
+            with self.subTest(value="missing" if value is None else "empty"):
+                environment = self.production_environment()
+                if value is None:
+                    del environment["SECRET_KEY"]
+                else:
+                    environment["SECRET_KEY"] = value
+
+                with self.assertRaises(ImproperlyConfigured) as error:
+                    self.load_settings(environment)
+
+                self.assertIn("SECRET_KEY", str(error.exception))
+                self.assertNotIn("test-only-secret-key", str(error.exception))
+
     def test_placeholder_connection_values_fail_without_disclosing_contents(self):
         for name in ("DB_NAME", "DB_USER", "DB_HOST", "SCHEMA"):
             with self.subTest(name=name):
@@ -126,5 +143,6 @@ class DatabaseSettingsTests(SimpleTestCase):
 
                 self.assertFalse(settings["PRODUCTION"])
                 self.assertTrue(settings["DEBUG"])
+                self.assertTrue(settings["SECRET_KEY"])
                 self.assertEqual(settings["DATABASES"]["default"]["ENGINE"], "django.db.backends.sqlite3")
                 self.assertEqual(settings["DATABASES"]["default"]["NAME"], SETTINGS_PATH.parent.parent / "db.sqlite3")

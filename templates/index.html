@@ -60,29 +60,31 @@
                     <h3>Building ideas.<br>Making a mark.</h3>
                     <p class="profile-summary">I'm {{ name }}, an Information Systems student exploring software engineering, fintech, and the creative side of life.</p>
                     <a href="{% url 'main:show_projects' %}" class="profile-text-link">View my work <span aria-hidden="true">&nearr;</span></a>
+                    <dl class="meta-list profile-session-list">
+                        <div class="meta-row profile-session">
+                            <dt>Sesi Terakhir Login</dt>
+                            <dd>{{ last_login }}</dd>
+                        </div>
+                    </dl>
                 </div>
 
                 <div class="profile-details">
                     <dl class="meta-list">
-    <div class="meta-row">
-        <dt>NPM</dt>
-        <dd class="profile-student-number">{{ npm }}</dd>
-    </div>
+                        <div class="meta-row">
+                            <dt>NPM</dt>
+                            <dd class="profile-student-number">{{ npm }}</dd>
+                        </div>
 
-    <div class="meta-row">
-        <dt>Program</dt>
-        <dd class="profile-study">{{ study_program }}</dd>
-    </div>
+                        <div class="meta-row">
+                            <dt>Program</dt>
+                            <dd class="profile-study">{{ study_program }}</dd>
+                        </div>
 
-    <div class="meta-row">
-        <dt>Sesi Terakhir Login</dt>
-        <dd>{{ last_login }}</dd>
-    </div>
-</dl>
+                    </dl>
 
-<p class="profile-university">
-    Universitas<br><span>Indonesia</span>
-</p>
+                    <p class="profile-university">
+                        Universitas<br><span>Indonesia</span>
+                    </p>
                     <div class="profile-socials" aria-label="Contact and social links">
                         <a href="mailto:noeandrewjms@gmail.com" class="profile-contact-link glass-button"><span class="glass-button__label">Email <span aria-hidden="true">&nearr;</span></span></a>
                         <a href="https://github.com/noeandrew-jm" class="profile-contact-link glass-button"><span class="glass-button__label">GitHub <span aria-hidden="true">&nearr;</span></span></a>

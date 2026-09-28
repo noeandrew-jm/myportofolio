@@ -18,6 +18,7 @@ Ketiga halaman `/experience/`, `/achievements/`, dan `/projects/` membaca Postgr
    | Variabel | Nilai yang diperlukan |
    | --- | --- |
    | `PRODUCTION` | `True` |
+   | `SECRET_KEY` | Nilai acak baru yang rahasia; jangan gunakan nilai dari repositori atau membagikannya |
    | `DB_PORT` | `5432`, sesuai port dalam informasi koneksi |
    | `DB_HOST` | Host database asli, tanpa pembungkus contoh `<...>` |
    | `DB_NAME` | Nama database asli, tanpa pembungkus contoh `<...>` |
@@ -26,6 +27,7 @@ Ketiga halaman `/experience/`, `/achievements/`, dan `/projects/` membaca Postgr
    | `SCHEMA` | Nama schema proyek yang sudah digunakan; tutorial memakai `tutorial` |
 
    Kredensial yang dipakai untuk `git push pws` adalah Project Credentials PWS; isian `DB_*` harus berasal dari informasi koneksi PostgreSQL. Jangan mengganti `PRODUCTION=False` sebagai jalan pintas karena itu memilih database SQLite yang berbeda.
+   Buat nilai baru menggunakan `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`, lalu masukkan langsung ke Environs. Jika secret lama pernah dipakai pada deployment, rotasi nilainya.
 4. Klik **Update All Variables**, kemudian jalankan ulang/redeploy aplikasi agar proses server membaca environment baru. Pantau **Logs** sampai server siap. Saat men-deploy perubahan kode, gunakan langkah commit/push pada bagian deployment README.
 5. Buka kembali ketiga URL halaman di atas. Jika muncul error baru, cocokkan dengan tabel berikut.
 
@@ -49,6 +51,7 @@ Jika tabel belum ada, jalankan `python manage.py migrate --noinput` pada lingkun
 - `portofolio/settings.py` membaca `.env` dari root proyek tanpa menimpa environment PWS, memakai port default `5432` bila variabel tidak ada, dan menolak nilai port tidak valid sebelum melayani request.
 - Nama database, username, host, password, dan schema diperiksa agar tidak kosong. Pembungkus contoh ditolak untuk nama database, username, host, dan schema. Isi password dipertahankan persis dan tidak dicantumkan dalam pesan validasi.
 - `DEBUG=False` ketika `PRODUCTION=True`; detail error produksi dibaca melalui Logs. Ini mengikuti [pengaturan DEBUG Django](https://docs.djangoproject.com/en/5.2/ref/settings/#debug).
+- Produksi menolak startup bila `SECRET_KEY` tidak disediakan. Mode lokal membuat secret sementara secara otomatis jika environment tidak menetapkannya.
 - `main/test_settings.py` menguji konfigurasi dengan nilai contoh terisolasi, tanpa menghubungi database produksi. Tes halaman memakai database pengujian tersendiri.
 
 Perbaikan Environs tetap wajib meskipun validasi kode sudah ditambahkan. Keberhasilan tes lokal tidak membuktikan koneksi PostgreSQL produksi sudah pulih.

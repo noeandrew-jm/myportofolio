@@ -28,6 +28,8 @@ def project_data(**overrides):
 
 class ProjectUpdateTests(TestCase):
     def setUp(self):
+        self.admin = get_user_model().objects.create_superuser(username="project_update_admin")
+        self.client.force_login(self.admin)
         self.project = Project.objects.create(**project_data(title="Original project"))
         self.url = reverse("main:update_project", args=[self.project.pk])
 
@@ -74,6 +76,7 @@ class ProjectUpdateTests(TestCase):
 
     def test_edit_post_requires_csrf(self):
         client = Client(enforce_csrf_checks=True)
+        client.force_login(self.admin)
         self.assertEqual(client.post(self.url, project_data()).status_code, 403)
         client.get(self.url)
         token = client.cookies[settings.CSRF_COOKIE_NAME].value
@@ -364,8 +367,8 @@ class ProjectDataDeliveryTests(TestCase):
         self.assertEqual({item["pk"] for item in payload}, {str(self.project.pk), str(self.other_project.pk)})
         for item in payload:
             self.assertEqual(item["model"], "main.project")
-            self.assertEqual(set(item["fields"]), set(project_data()) | {"starred_by"})
-            self.assertEqual(item["fields"]["starred_by"], [])
+            self.assertEqual(set(item["fields"]), set(project_data()))
+            self.assertNotIn("starred_by", item["fields"])
         objects = [item.object for item in serializers.deserialize("json", response.content)]
         self.assertEqual({obj.pk for obj in objects}, {self.project.pk, self.other_project.pk})
         self.assertTrue(all(isinstance(obj, Project) for obj in objects))

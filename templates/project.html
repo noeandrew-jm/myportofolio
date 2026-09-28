@@ -38,7 +38,7 @@
         <div class="showcase-group">
             {% for project in project_list %}
                 <article class="showcase-card">
-                    <h2 class="showcase-title">{{ project.title }}</h2>
+                    <h2 class="showcase-title"><a href="{% url 'main:project_detail' project.id %}" class="project-title-link">{{ project.title }}</a></h2>
                     {% if project.project_image_url %}
                         <img src="{{ project.project_image_url }}" alt="Gambar {{ project.title }}"
                              class="showcase-image" loading="lazy">
@@ -53,7 +53,9 @@
                         {% if project.project_url %}
                             <a href="{{ project.project_url }}" class="button">Lihat Proyek</a>
                         {% endif %}
-                        <a href="{% url 'main:update_project' project.id %}" class="button button-secondary" aria-label="Edit {{ project.title }}">Edit Proyek</a>
+                        {% if can_edit_projects %}
+                            <a href="{% url 'main:update_project' project.id %}" class="button button-secondary" aria-label="Edit {{ project.title }}">Edit Proyek</a>
+                        {% endif %}
                         {% include "components/projects_star.html" with project=project %}
                         {% if user.is_superuser %}
                             {% include "components/project_delete_modal.html" with project=project %}

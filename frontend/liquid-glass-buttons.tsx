@@ -95,9 +95,9 @@ function GlassButtonEffect({ button }: { button: HTMLElement }) {
   );
 }
 
-// Navigation glass stays exclusive to the active page. The three profile
-// contact links opt into the same decorative effect independently.
-document.querySelectorAll<HTMLElement>('.nav-group .glass-button[aria-current="page"], .profile-contact-link.glass-button').forEach((button, index) => {
+// Auth links keep their glass surface on every page; other navigation links
+// and profile contacts use the effect only when explicitly marked.
+document.querySelectorAll<HTMLElement>('.nav-group .glass-button[aria-current="page"], .nav-group .nav-auth-link.glass-button, .profile-contact-link.glass-button').forEach((button, index) => {
   const effect = document.createElement("div");
   effect.className = "glass-button__effect";
   effect.setAttribute("aria-hidden", "true");

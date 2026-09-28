@@ -166,18 +166,39 @@ class MainTest(TestCase):
                 )
                 for link in links:
                     classes = link.get("class", "").split()
+                    link_path = urlsplit(link["href"]).path
+                    is_active = link_path == reverse(f"main:{active_route}")
+                    is_auth_link = link_path in (
+                        reverse("main:login"),
+                        reverse("main:register"),
+                    )
                     self.assertIn("nav-link", classes)
-                    if urlsplit(link["href"]).path == reverse(f"main:{active_route}"):
+                    if is_active:
                         self.assertIn("active", classes)
                         self.assertIn("glass-button", classes)
                         self.assertEqual(link.get("aria-current"), "page")
-                        self.assertEqual(document.navigation_glass_elements, [("a", link)])
                     else:
                         self.assertNotIn("active", classes)
-                        self.assertNotIn("glass-button", classes)
                         self.assertNotIn("aria-current", link)
+                    if is_active or is_auth_link:
+                        self.assertIn("glass-button", classes)
+                    else:
+                        self.assertNotIn("glass-button", classes)
+                expected_glass_links = [
+                    ("a", link)
+                    for link in links
+                    if urlsplit(link["href"]).path == reverse(f"main:{active_route}")
+                    or urlsplit(link["href"]).path in (
+                        reverse("main:login"),
+                        reverse("main:register"),
+                    )
+                ]
+                self.assertEqual(document.navigation_glass_elements, expected_glass_links)
                 self.assertEqual(document.asset_paths.count("/static/js/liquid-glass.js"), 1)
-                self.assertEqual(len(document.glass_elements), 4 if route == "show_main" else 1)
+                self.assertEqual(
+                    len(document.glass_elements),
+                    len(expected_glass_links) + (3 if route == "show_main" else 0),
+                )
                 label_count = len(expected_destinations) + (3 if route == "show_main" else 0)
                 self.assertContains(response, 'class="glass-button__label"', count=label_count)
                 # Effects must not replace the links or hide their accessible labels.

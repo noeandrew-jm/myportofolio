@@ -9,15 +9,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <meta name="theme-color" content="#0C0C0C">
     <title>{% block title %}{{ name }} - Portfolio{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=profile-compact-v3">
-    <script src="{% static 'js/liquid-glass.js' %}?v=galaxy-shared-theme-20260921-2" defer></script>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=mobile-nav-glass-20260928-1">
+    <script src="{% static 'js/liquid-glass.js' %}?v=navbar-auth-glass-20260928-1" defer></script>
+    <script src="{% static 'js/navigation.js' %}?v=mobile-nav-20260928-1" defer></script>
     {% block meta %} {% endblock meta %}
 </head>
 <body>
     <header class="site-header">
         <div class="container">
             <a href="{% url 'main:show_main' %}" class="brand">{{ name }}<span aria-hidden="true">.</span></a>
-            <nav class="nav-group" aria-label="Main navigation">
+            <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="main-navigation" aria-label="Buka menu navigasi">
+                <span></span><span></span><span></span>
+            </button>
+            <nav class="nav-group" id="main-navigation" aria-label="Main navigation">
     <a href="{% url 'main:show_main' %}"
        class="nav-link{% if active_page == 'about' %} glass-button active{% endif %}"
        {% if active_page == 'about' %}aria-current="page"{% endif %}>
@@ -49,14 +53,14 @@
             <span class="glass-button__label">Logout</span>
         </a>
     {% else %}
-        <a href="{% url 'main:login' %}"
-           class="nav-link{% if active_page == 'login' %} glass-button active{% endif %}"
+          <a href="{% url 'main:login' %}"
+              class="nav-link nav-auth-link glass-button{% if active_page == 'login' %} active{% endif %}"
            {% if active_page == 'login' %}aria-current="page"{% endif %}>
             <span class="glass-button__label">Login</span>
         </a>
 
-        <a href="{% url 'main:register' %}"
-           class="nav-link{% if active_page == 'register' %} glass-button active{% endif %}"
+          <a href="{% url 'main:register' %}"
+              class="nav-link nav-auth-link glass-button{% if active_page == 'register' %} active{% endif %}"
            {% if active_page == 'register' %}aria-current="page"{% endif %}>
             <span class="glass-button__label">Register</span>
         </a>
