@@ -1,0 +1,146 @@
+/* Feedback stays in the browser's top layer, including above project dialogs. */
+.toast-component {
+    position: fixed;
+    inset: auto 1.5rem 1.5rem auto;
+    z-index: 100;
+    display: none;
+    align-items: flex-start;
+    gap: 0.75rem;
+    width: min(440px, calc(100% - 3rem));
+    max-height: min(50vh, 360px);
+    margin: 0;
+    padding: 1rem 0.75rem 1rem 1.25rem;
+    overflow-y: auto;
+    border: 1px solid #45404d;
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+    color: var(--ink);
+    background: #17151b;
+    box-shadow: 0 0.75rem 2.5rem #0008;
+    transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.toast-component:popover-open { display: flex; }
+.toast-component.toast-fallback-open { display: flex; }
+.toast-hidden { opacity: 0; transform: translateY(1rem); pointer-events: none; }
+.toast-show { opacity: 1; transform: translateY(0); }
+.toast-content { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.toast-title { margin-bottom: 0.35rem; font-size: 1rem; font-weight: 600; }
+.toast-message { color: #c1bcc9; font-size: 0.9rem; white-space: pre-line; }
+.toast-success { border-left-color: #69d49a; }
+.toast-error { border-left-color: #f5828d; }
+.toast-normal { border-left-color: #bd7ee5; }
+.toast-close {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    margin-top: -0.4rem;
+    border: 0;
+    border-radius: 8px;
+    color: var(--text-muted);
+    background: transparent;
+    font-size: 1.75rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.toast-close:hover { color: #fff; background: #ffffff0a; }
+
+.project-form-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 1rem;
+    border: 0;
+    color: var(--ink);
+    background: transparent;
+    align-items: center;
+    justify-content: center;
+}
+.project-form-modal:popover-open { display: flex; }
+html.project-modal-open { overflow: hidden; }
+.project-form-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: #000a;
+    cursor: default;
+}
+.project-form-modal__content {
+    position: relative;
+    width: min(100%, 640px);
+    max-height: 100%;
+    min-width: 0;
+    padding: 1.75rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid #45404d;
+    border-radius: var(--radius);
+    color: var(--ink);
+    background: #17151b;
+    box-shadow: 0 1rem 3rem #0006;
+}
+.project-form-modal__content h2 { padding-right: 2.5rem; margin: 0 0 0.75rem; font-size: 1.5rem; }
+.project-form-modal__intro { color: var(--text-muted); font-size: 0.9rem; }
+.project-form-modal__content .project-form { margin-top: 1.5rem; }
+.project-form-modal__close {
+    position: absolute;
+    top: 0.65rem;
+    right: 0.65rem;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 8px;
+    color: var(--text-muted);
+    background: transparent;
+    font-size: 1.8rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.project-form-modal__close:hover { color: #fff; background: #ffffff0a; }
+.project-form-modal__actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+.project-form-modal [aria-invalid="true"] { border-color: #f5828d; }
+.project-form-modal .form-error { overflow-wrap: anywhere; }
+.project-form-modal .button:disabled { opacity: 0.6; cursor: wait; }
+
+.projects-feedback {
+    width: min(640px, calc(100% - 2rem));
+    margin: 1rem auto 2rem;
+    padding: 1.5rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    background: var(--surface);
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+.projects-feedback .button { margin-top: 1rem; }
+.showcase--projects .showcase-description,
+.showcase--projects .content-item-label { max-width: 100%; overflow-wrap: anywhere; }
+.hide, [hidden] { display: none !important; }
+
+@media (max-width: 600px) {
+    .toast-component { inset: auto 1rem 1rem 1rem; width: auto; max-width: none; }
+    .project-form-modal { align-items: flex-end; padding: 0; }
+    .project-form-modal__content {
+        width: 100%;
+        max-height: 92vh;
+        max-height: 92dvh;
+        padding: 1.25rem;
+        padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+        border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .project-form-modal__actions { flex-direction: column-reverse; }
+    .project-form-modal__actions .button { width: 100%; text-align: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .toast-component { transition: none; }
+}

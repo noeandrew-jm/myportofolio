@@ -1,3 +1,4 @@
+import json
 import uuid
 from unittest.mock import patch
 from xml.etree import ElementTree
@@ -5,7 +6,6 @@ from xml.etree import ElementTree
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import serializers
-from django.http import HttpResponse
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils.html import escape
@@ -42,7 +42,8 @@ class ProjectUpdateTests(TestCase):
         self.assertContains(response, 'value="Original project"')
         self.assertContains(response, f'action="{self.url}"')
         self.assertContains(response, "Simpan Perubahan")
-        self.assertContains(self.client.get(reverse("main:show_projects")), f'href="{self.url}"')
+        detail = self.client.get(reverse("main:project_detail", args=[self.project.pk]))
+        self.assertContains(detail, f'href="{self.url}"')
 
     def test_update_changes_same_record_and_serialized_listing(self):
         count = Project.objects.count()
@@ -53,11 +54,10 @@ class ProjectUpdateTests(TestCase):
         self.assertEqual(Project.objects.count(), count)
         for field, value in data.items():
             self.assertEqual(getattr(self.project, field), value)
-        self.assertContains(response, "Updated project")
-        self.assertContains(response, "Revised description")
         self.assertContains(response, "Proyek berhasil diperbarui!")
         record = next(row for row in self.client.get(reverse("main:get_projects_json")).json() if row["pk"] == str(self.project.pk))
         self.assertEqual(record["fields"]["title"], "Updated project")
+        self.assertEqual(record["fields"]["description"], "Revised description")
 
     def test_invalid_update_preserves_saved_record_and_bound_input(self):
         response = self.client.post(self.url, project_data(title="Unsaved title", project_url="invalid URL"))
@@ -84,6 +84,49 @@ class ProjectUpdateTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.project.refresh_from_db()
         self.assertEqual(self.project.title, "CSRF verified")
+
+
+class ProjectDetailUrlTests(TestCase):
+    def setUp(self):
+        self.project = Project.objects.create(**project_data())
+        self.url = reverse("main:project_detail", args=[self.project.pk])
+
+    def test_detail_preserves_http_and_https_urls_with_escaped_attributes(self):
+        self.project.project_url = "https://example.com/demo?source=portfolio&mode=preview"
+        self.project.project_image_url = "http://example.com/image.png?width=800&height=600"
+        self.project.save()
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'href="{escape(self.project.project_url)}"')
+        self.assertContains(response, f'src="{escape(self.project.project_image_url)}"')
+        self.assertContains(response, "Lihat Proyek")
+
+    def test_detail_omits_unsafe_legacy_urls_without_changing_saved_data(self):
+        # Direct database writes bypass ProjectForm, as can older imported data.
+        for value in (
+            "javascript:alert(1)",
+            "JaVaScRiPt:alert(1)",
+            "java\nscript:alert(1)",
+            "data:text/html,<script>alert(1)</script>",
+            "ftp://example.com/project",
+            "//example.com/project",
+            "https://[broken",
+        ):
+            with self.subTest(value=value):
+                self.project.project_url = value
+                self.project.project_image_url = value
+                self.project.save()
+
+                response = self.client.get(self.url)
+
+                self.assertEqual(response.status_code, 200)
+                self.assertNotContains(response, "Lihat Proyek")
+                self.assertNotContains(response, 'class="project-image"')
+                self.project.refresh_from_db()
+                self.assertEqual(self.project.project_url, value)
+                self.assertEqual(self.project.project_image_url, value)
 
 
 class ProjectFormTests(TestCase):
@@ -169,22 +212,22 @@ class ProjectPageTests(TestCase):
                 self.assertContains(response, 'aria-current="page"', count=1)
                 self.assertContains(response, f'href="{reverse("main:show_projects")}"')
 
-    def test_list_displays_database_fields_and_optional_links(self):
+    def test_list_returns_ajax_shell_and_public_api_provides_card_data(self):
         response = self.client.get(reverse("main:show_projects"))
 
-        self.assertEqual(
-            {project.pk for project in response.context["project_list"]},
-            {self.project.pk, self.other_project.pk},
-        )
+        self.assertNotIn("project_list", response.context)
+        self.assertIsInstance(response.context["form"], ProjectForm)
+        self.assertFalse(response.context["form"].is_bound)
+        for element_id in ("project-search-form", "search-input", "loading", "error", "empty", "grid", "project-cards"):
+            self.assertContains(response, f'id="{element_id}"', count=1)
+        payload = self.client.get(reverse("main:get_projects_json")).json()
+        records = {item["pk"]: item["fields"] for item in payload}
+        self.assertEqual(set(records), {str(self.project.pk), str(self.other_project.pk)})
         for project in (self.project, self.other_project):
-            self.assertContains(response, project.title)
-            self.assertContains(response, project.description)
-            self.assertContains(response, project.tech_stack)
-        self.assertContains(response, f'href="{escape(self.project.project_url)}"')
-        self.assertContains(response, f'src="{self.project.project_image_url}"')
-        self.assertNotContains(response, 'src=""')
-        self.assertNotContains(response, f'href="{reverse("main:create_project")}"')
-        self.assertTemplateUsed(response, "components/projects_star.html")
+            self.assertNotContains(response, project.title)
+            for field in project_data():
+                self.assertEqual(records[str(project.pk)][field], getattr(project, field))
+        self.assertNotContains(response, 'id="add-project-modal"')
 
     def test_get_form_is_unbound_and_does_not_create_data(self):
         self.client.force_login(self.admin)
@@ -209,7 +252,8 @@ class ProjectPageTests(TestCase):
         for field, value in data.items():
             self.assertEqual(getattr(saved, field), value)
         self.assertContains(response, "Proyek baru berhasil ditambahkan!")
-        self.assertContains(response, saved.title)
+        payload = self.client.get(reverse("main:get_projects_json")).json()
+        self.assertIn(str(saved.pk), {item["pk"] for item in payload})
 
     def test_post_can_create_without_optional_urls(self):
         self.client.force_login(self.admin)
@@ -254,25 +298,22 @@ class ProjectPageTests(TestCase):
         response = self.client.get(reverse("main:show_projects"), {"title": "  fOcUsBuDdY  "})
 
         self.assertEqual(response.context["title_query"], "fOcUsBuDdY")
-        self.assertEqual([p.pk for p in response.context["project_list"]], [self.project.pk])
-        self.assertContains(response, self.project.title)
-        self.assertNotContains(response, self.other_project.title)
         self.assertContains(response, 'value="fOcUsBuDdY"')
+        payload = self.client.get(reverse("main:get_projects_json"), {"title": "  fOcUsBuDdY  "}).json()
+        self.assertEqual([item["pk"] for item in payload], [str(self.project.pk)])
 
-    def test_empty_and_no_match_lists_render_empty_states(self):
+    def test_empty_and_no_match_api_results_leave_empty_state_available(self):
         response = self.client.get(reverse("main:show_projects"), {"title": "No matching project"})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context["project_list"]), [])
-        self.assertContains(response, 'class="empty-state"')
-        self.assertContains(response, "Tidak ada proyek dengan nama tersebut.")
+        self.assertEqual(self.client.get(reverse("main:get_projects_json"), {"title": "No matching project"}).json(), [])
+        self.assertContains(response, 'id="empty"')
 
         Project.objects.all().delete()
         response = self.client.get(reverse("main:show_projects"))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context["project_list"]), [])
+        self.assertEqual(self.client.get(reverse("main:get_projects_json")).json(), [])
         self.assertEqual(response.context["title_query"], "")
-        self.assertContains(response, 'class="empty-state"')
-        self.assertContains(response, "Belum ada proyek yang ditambahkan.")
+        self.assertContains(response, 'id="empty"')
 
     def test_project_and_search_text_are_html_escaped(self):
         title = '<script>alert("title")</script>'
@@ -282,41 +323,38 @@ class ProjectPageTests(TestCase):
         self.project.save()
         response = self.client.get(reverse("main:show_projects"))
 
-        self.assertContains(response, escape(title))
-        self.assertContains(response, escape(description))
         self.assertNotContains(response, title)
         self.assertNotContains(response, description)
+        # Legacy database content remains data; browser coverage verifies safe
+        # DOM rendering, and detail pages continue to use Django autoescaping.
+        detail = self.client.get(reverse("main:project_detail", args=[self.project.pk]))
+        self.assertContains(detail, escape(title))
+        self.assertContains(detail, escape(description))
+        self.assertNotContains(detail, title)
+        self.assertNotContains(detail, description)
 
         response = self.client.get(reverse("main:show_projects"), {"title": title})
         self.assertContains(response, escape(title))
         self.assertNotContains(response, title)
 
-    def test_list_consumes_the_serialized_json_response(self):
-        serialized_project = Project(**project_data(title="Serialized response project"))
-        api_response = HttpResponse(
-            serializers.serialize("json", [serialized_project]),
-            content_type="application/json",
-        )
-        with patch("main.views.get_projects_json", return_value=api_response) as json_view:
+    def test_list_defers_database_loading_to_the_browser(self):
+        with patch("main.views.get_projects_json") as json_view, patch("main.views.public_projects") as query:
             response = self.client.get(reverse("main:show_projects"))
 
-        json_view.assert_called_once()
+        json_view.assert_not_called()
+        query.assert_not_called()
         self.assertEqual(response.status_code, 200)
-        objects = list(response.context["project_list"])
-        self.assertEqual(len(objects), 1)
-        self.assertIsInstance(objects[0], Project)
-        self.assertEqual(objects[0].pk, serialized_project.pk)
-        self.assertContains(response, serialized_project.title)
+        self.assertNotIn("project_list", response.context)
+        self.assertContains(response, reverse("main:get_projects_json"))
         self.assertNotContains(response, self.project.title)
 
     def test_delete_confirmation_posts_with_csrf_and_unique_project_target(self):
         self.client.force_login(self.admin)
-        response = self.client.get(reverse("main:show_projects"))
-
-        self.assertTemplateUsed(response, "components/project_delete_modal.html")
-        # Each project has a separate star form and delete confirmation form.
-        self.assertContains(response, 'name="csrfmiddlewaretoken"', count=4)
         for project in (self.project, self.other_project):
+            response = self.client.get(reverse("main:project_detail", args=[project.pk]))
+            self.assertTemplateUsed(response, "components/project_delete_modal.html")
+            # Detail retains one star form and one delete confirmation form.
+            self.assertContains(response, 'name="csrfmiddlewaretoken"', count=2)
             self.assertContains(
                 response,
                 f'action="{reverse("main:delete_project", args=[project.pk])}"',
@@ -358,7 +396,7 @@ class ProjectDataDeliveryTests(TestCase):
         cls.project = Project.objects.create(**project_data(title="FocusBuddy & Noe"))
         cls.other_project = Project.objects.create(**project_data(title="Portfolio"))
 
-    def test_json_is_django_serialization_and_round_trips(self):
+    def test_json_preserves_serializer_fields_with_aggregate_star_metadata(self):
         response = self.client.get(reverse("main:get_projects_json"))
 
         self.assertEqual(response.status_code, 200)
@@ -367,9 +405,16 @@ class ProjectDataDeliveryTests(TestCase):
         self.assertEqual({item["pk"] for item in payload}, {str(self.project.pk), str(self.other_project.pk)})
         for item in payload:
             self.assertEqual(item["model"], "main.project")
-            self.assertEqual(set(item["fields"]), set(project_data()))
+            self.assertEqual(set(item["fields"]), set(project_data()) | {"star_count", "is_starred"})
             self.assertNotIn("starred_by", item["fields"])
-        objects = [item.object for item in serializers.deserialize("json", response.content)]
+            self.assertNotIn("starred_by_names", item["fields"])
+            self.assertEqual(item["fields"]["star_count"], 0)
+            self.assertIs(item["fields"]["is_starred"], False)
+        model_payload = [
+            {**item, "fields": {key: value for key, value in item["fields"].items() if key in project_data()}}
+            for item in payload
+        ]
+        objects = [item.object for item in serializers.deserialize("json", json.dumps(model_payload))]
         self.assertEqual({obj.pk for obj in objects}, {self.project.pk, self.other_project.pk})
         self.assertTrue(all(isinstance(obj, Project) for obj in objects))
 
@@ -390,7 +435,8 @@ class ProjectDataDeliveryTests(TestCase):
                 self.assertEqual(json_response.status_code, 200)
                 self.assertEqual(xml_response.status_code, 200)
                 self.assertEqual(xml_response["Content-Type"], "application/xml")
-                self.assertEqual({obj.pk for obj in html_response.context["project_list"]}, expected)
+                self.assertEqual(html_response.context["title_query"], query.strip())
+                self.assertNotIn("project_list", html_response.context)
                 self.assertEqual({uuid.UUID(item["pk"]) for item in json_response.json()}, expected)
                 root = ElementTree.fromstring(xml_response.content)
                 self.assertEqual(root.tag, "django-objects")

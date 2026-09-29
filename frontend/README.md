@@ -1,6 +1,7 @@
 # Portfolio frontend
 
-Django renders every page and all portfolio content. Small local React bundles
+Django renders every page shell; Projects loads its cards through the JSON API.
+Small local React bundles
 enhance the active navigation button and the homepage personal-name hero. The generated
 JavaScript and CSS are included in the project, so running Django or deploying to
 PWS does not require Node.js or npm.
@@ -91,7 +92,15 @@ reduced-motion preferences also suspend automatic movement.
 Repeated groups are decorative and hidden from screen readers. Their actions
 delegate to original links and buttons. Copies contain no forms, IDs or dialogs,
 so project deletion keeps one CSRF-protected form and confirmation per record.
-Without JavaScript, the original cards are horizontally scrollable.
+Without JavaScript, Experience and Achievements retain horizontally scrollable
+cards. Projects shows a notice explaining that its AJAX list needs JavaScript.
+
+`static/js/projects.js` fetches project cards, debounces search for 300 ms, and
+submits the superuser form without reloading. `static/js/toast.js` provides
+shared notifications; their styles and the modal styles live in
+`static/css/project-interactivity.css`. These files are loaded directly by
+Django and do not require the React build. After a list update,
+`showcase:refresh` rebuilds the decorative carousel copies.
 
 Cards show their title first, followed by the image, description, and supporting
 details/actions. Landscape images keep their proportions at the card width;

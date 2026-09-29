@@ -292,25 +292,25 @@ class ProjectAuthorizationTests(TestCase):
                     self.client.logout()
                 else:
                     self.client.force_login(user)
-                for url in (
-                    reverse("main:show_projects"),
-                    reverse("main:project_detail", args=[self.project.pk]),
-                ):
-                    response = self.client.get(url)
-                    self.assertEqual(response.status_code, 200)
-                    self.assertContains(response, self.project.title)
-                    owner_assertion = self.assertContains if user == self.admin else self.assertNotContains
-                    if url == reverse("main:show_projects") or user != self.admin:
-                        owner_assertion(response, f'href="{reverse("main:create_project")}"')
-                    owner_assertion(
-                        response,
-                        f'action="{reverse("main:delete_project", args=[self.project.pk])}"',
-                    )
-                    editor_assertion = self.assertContains if user in (self.editor, self.admin) else self.assertNotContains
-                    editor_assertion(
-                        response,
-                        f'href="{reverse("main:update_project", args=[self.project.pk])}"',
-                    )
+                owner_assertion = self.assertContains if user == self.admin else self.assertNotContains
+                listing = self.client.get(reverse("main:show_projects"))
+                self.assertEqual(listing.status_code, 200)
+                self.assertEqual(listing.context["can_edit_projects"], user in (self.editor, self.admin))
+                owner_assertion(listing, 'id="add-project-modal"')
+                owner_assertion(listing, 'id="project-form"')
+
+                response = self.client.get(reverse("main:project_detail", args=[self.project.pk]))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, self.project.title)
+                owner_assertion(
+                    response,
+                    f'action="{reverse("main:delete_project", args=[self.project.pk])}"',
+                )
+                editor_assertion = self.assertContains if user in (self.editor, self.admin) else self.assertNotContains
+                editor_assertion(
+                    response,
+                    f'href="{reverse("main:update_project", args=[self.project.pk])}"',
+                )
 
     def test_superuser_can_open_form_and_create_project(self):
         self.client.force_login(self.admin)

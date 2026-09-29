@@ -1,8 +1,19 @@
 {% extends "showcase_base.html" %}
 {% load static %}
 {% block title %}Projects - {{ name }}{% endblock title %}
+{% block meta %}
+{{ block.super }}
+<script src="{% static 'js/projects.js' %}?v=ajax-20260929" defer></script>
+{% endblock meta %}
 {% block content %}
-<main>
+<main id="projects-app"
+      data-projects-endpoint="{% url 'main:get_projects_json' %}"
+      data-create-endpoint="{% url 'main:create_project_ajax' %}"
+      data-detail-url="{% url 'main:project_detail' '00000000-0000-0000-0000-000000000000' %}"
+      data-edit-url="{% url 'main:update_project' '00000000-0000-0000-0000-000000000000' %}"
+      data-delete-url="{% url 'main:delete_project' '00000000-0000-0000-0000-000000000000' %}"
+      data-star-url="{% url 'main:toggle_star' '00000000-0000-0000-0000-000000000000' %}"
+      data-login-url="{% url 'main:login' %}">
     <section class="page-intro showcase-intro">
         <div class="container showcase-intro-layout">
             <img class="showcase-decoration showcase-decoration--left showcase-decoration--object" src="{% static 'image/about/object.png' %}" alt="" aria-hidden="true" width="150" height="150" draggable="false">
@@ -11,9 +22,9 @@
                 <div class="project-header">
                     <h1>Projects</h1>
                     {% if user.is_superuser %} 
-                    <a href="{% url 'main:create_project' %}" class="button project-add-button">
+                    <button type="button" class="button project-add-button" popovertarget="add-project-modal">
                         <span aria-hidden="true">+</span> Tambah Proyek
-                    </a>
+                    </button>
                     {% endif %} 
                 </div>
             </div>
@@ -21,57 +32,75 @@
         </div>
     </section>
     <section class="container projects-section" aria-label="Daftar proyek">
-        <form method="get" action="{% url 'main:show_projects' %}" class="project-search" role="search">
-            <input type="search" name="title" value="{{ title_query }}"
+        <form id="project-search-form" method="get" action="{% url 'main:show_projects' %}" class="project-search" role="search">
+            <input id="search-input" type="search" name="title" value="{{ title_query }}"
                    placeholder="Cari berdasarkan nama proyek" class="project-search__input"
                    aria-label="Cari berdasarkan nama proyek">
             <button type="submit" class="button">Cari</button>
-            {% if title_query %}
-                <a href="{% url 'main:show_projects' %}" class="button button-secondary">Reset</a>
-            {% endif %}
+            <button id="reset-search" type="button" class="button button-secondary{% if not title_query %} hide{% endif %}">Reset</button>
         </form>
+        <div id="loading" class="projects-feedback" role="status"><p>Memuat proyek...</p></div>
+        <div id="error" class="projects-feedback hide" role="alert">
+            <p>Gagal memuat data proyek. Silakan coba lagi.</p>
+            <button id="retry-projects" type="button" class="button button-secondary">Coba Lagi</button>
+        </div>
+        <div id="empty" class="projects-feedback hide" role="status"><p>Belum ada proyek yang ditambahkan atau ditemukan.</p></div>
+        <noscript><p class="empty-state">Aktifkan JavaScript untuk memuat dan mencari proyek.</p></noscript>
     </section>
-    <section class="showcase showcase--projects" aria-label="Project cards" data-showcase>
+    <section id="grid" class="showcase showcase--projects hide" aria-label="Project cards" data-showcase aria-busy="true">
         <p class="showcase-hint">Hover to pause <span aria-hidden="true">&middot;</span> Swipe to explore</p>
         <div class="showcase-viewport" tabindex="0" aria-label="Project cards, scroll horizontally">
         <div class="showcase-track">
-        <div class="showcase-group">
-            {% for project in project_list %}
-                <article class="showcase-card">
-                    <h2 class="showcase-title"><a href="{% url 'main:project_detail' project.id %}" class="project-title-link">{{ project.title }}</a></h2>
-                    {% if project.project_image_url %}
-                        <img src="{{ project.project_image_url }}" alt="Gambar {{ project.title }}"
-                             class="showcase-image" loading="lazy">
-                    {% else %}
-                        <span class="showcase-monogram" aria-hidden="true">{{ project.title|first }}</span>
-                    {% endif %}
-                    <p class="showcase-description">{{ project.description }}</p>
-                    <div class="showcase-caption">
-                        <p class="content-item-label">{{ project.tech_stack }}</p>
-                    </div>
-                    <div class="project-card-actions">
-                        {% if project.project_url %}
-                            <a href="{{ project.project_url }}" class="button">Lihat Proyek</a>
-                        {% endif %}
-                        {% if can_edit_projects %}
-                            <a href="{% url 'main:update_project' project.id %}" class="button button-secondary" aria-label="Edit {{ project.title }}">Edit Proyek</a>
-                        {% endif %}
-                        {% include "components/projects_star.html" with project=project %}
-                        {% if user.is_superuser %}
-                            {% include "components/project_delete_modal.html" with project=project %}
-                        {% endif %}     
-                    </div>
-                </article>
-            {% empty %}
-                {% if title_query %}
-                    <p class="empty-state">Tidak ada proyek dengan nama tersebut.</p>
-                {% else %}
-                    <p class="empty-state">Belum ada proyek yang ditambahkan.</p>
-                {% endif %}
-            {% endfor %}
-        </div>
+        <div id="project-cards" class="showcase-group"></div>
         </div>
         </div>
     </section>
 </main>
+<template id="project-card-template">
+    <article class="showcase-card">
+        <h2 class="showcase-title"><a class="project-title-link"></a></h2>
+        <span class="showcase-monogram" aria-hidden="true"></span>
+        <p class="showcase-description"></p>
+        <div class="showcase-caption"><p class="content-item-label"></p></div>
+        <div class="project-card-actions">
+            <a class="button" data-project-link>Lihat Proyek</a>
+            {% if can_edit_projects %}
+            <a class="button button-secondary" data-edit-project>Edit Proyek</a>
+            {% endif %}
+            {% if user.is_authenticated %}
+            <form method="post" class="star-form">
+                {% csrf_token %}
+                <input type="hidden" name="next">
+                <button type="submit" class="button button-star">
+                    <span aria-hidden="true">&#9733;</span> <span data-star-label></span>
+                    <span class="star-count"></span>
+                </button>
+            </form>
+            {% else %}
+            <a class="button button-star"><span aria-hidden="true">&#9733;</span> Login untuk star <span class="star-count"></span></a>
+            {% endif %}
+            {% if user.is_superuser %}
+            <button type="button" class="button button-danger" data-delete-project>Hapus Proyek</button>
+            <div class="project-delete-modal" popover="auto" role="dialog">
+                <button type="button" class="project-delete-modal__backdrop" popovertargetaction="hide" aria-label="Tutup konfirmasi hapus" tabindex="-1"></button>
+                <div class="project-delete-modal__content">
+                    <button type="button" class="project-delete-modal__close" popovertargetaction="hide" aria-label="Tutup konfirmasi hapus">&times;</button>
+                    <h2>Hapus Proyek?</h2>
+                    <p>Apakah Anda yakin ingin menghapus <strong data-delete-title></strong>?</p>
+                    <div class="project-delete-modal__actions">
+                        <button type="button" class="button button-secondary" popovertargetaction="hide" autofocus>Batal</button>
+                        <form method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="button button-danger">Ya, Hapus</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </article>
+</template>
+{% if user.is_superuser %}
+    {% include "components/project_form_modal.html" %}
+{% endif %}
 {% endblock content %}

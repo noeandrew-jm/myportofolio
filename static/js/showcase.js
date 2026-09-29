@@ -4,14 +4,9 @@ document.querySelectorAll('[data-showcase]').forEach(section => {
     const viewport = section.querySelector('.showcase-viewport');
     const track = section.querySelector('.showcase-track');
     const original = section.querySelector('.showcase-group');
-    const cards = [...original.querySelectorAll('.showcase-card')];
-    if (!cards.length) {
-        section.classList.add('showcase--empty');
-        viewport.removeAttribute('tabindex');
-        return;
-    }
+    let cards = [];
     const preference = matchMedia('(prefers-reduced-motion: reduce)');
-    const actions = [...original.querySelectorAll('a, button')].filter(el => !el.closest('[popover]'));
+    let actions = [];
     let groupWidth = 0;
     let position = 0;
     let lastTime = 0;
@@ -24,16 +19,19 @@ document.querySelectorAll('[data-showcase]').forEach(section => {
         copy.classList.add('showcase-copy');
         copy.setAttribute('aria-hidden', 'true');
         // Only original cards own dialogs, forms, IDs and keyboard destinations.
-        copy.querySelectorAll('[popover], form').forEach(el => el.remove());
+        copy.removeAttribute('id');
+        copy.querySelectorAll('[popover]').forEach(el => el.remove());
         copy.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
         const copyActions = [...copy.querySelectorAll('a, button')];
         copyActions.forEach((el, index) => {
             const visual = document.createElement('span');
             visual.className = el.className;
-            visual.innerHTML = el.innerHTML;
+            visual.replaceChildren(...el.childNodes);
             visual.dataset.copyAction = String(index);
             el.replaceWith(visual);
         });
+        copy.querySelectorAll('input').forEach(el => el.remove());
+        copy.querySelectorAll('form').forEach(el => el.replaceWith(...el.childNodes));
         copy.querySelectorAll('[tabindex]').forEach(el => el.removeAttribute('tabindex'));
         copy.addEventListener('click', event => {
             const action = event.target.closest('[data-copy-action]');
@@ -44,7 +42,7 @@ document.querySelectorAll('[data-showcase]').forEach(section => {
 
     function measure() {
         track.querySelectorAll('.showcase-copy').forEach(el => el.remove());
-        groupWidth = original.getBoundingClientRect().width;
+        groupWidth = cards.length ? original.getBoundingClientRect().width : 0;
         if (!groupWidth || preference.matches) {
             position = viewport.scrollLeft = 0;
             return;
@@ -81,7 +79,7 @@ document.querySelectorAll('[data-showcase]').forEach(section => {
         keyboardFocus = true;
         if (event.target === viewport && ['ArrowLeft', 'ArrowRight'].includes(event.key)) {
             event.preventDefault();
-            viewport.scrollBy({ left: (event.key === 'ArrowLeft' ? -1 : 1) * (cards[0].offsetWidth + 26), behavior: 'auto' });
+            viewport.scrollBy({ left: (event.key === 'ArrowLeft' ? -1 : 1) * ((cards[0]?.offsetWidth || 0) + 26), behavior: 'auto' });
             position = viewport.scrollLeft;
         }
     });
@@ -93,9 +91,21 @@ document.querySelectorAll('[data-showcase]').forEach(section => {
     });
     const resize = new ResizeObserver(measure);
     resize.observe(viewport);
+    resize.observe(original);
     const observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; });
     observer.observe(section);
     preference.addEventListener('change', measure);
-    measure();
+    function refresh() {
+        cards = [...original.querySelectorAll('.showcase-card')];
+        actions = [...original.querySelectorAll('a, button')].filter(el => !el.closest('[popover]'));
+        section.classList.toggle('showcase--empty', !cards.length);
+        if (cards.length) viewport.setAttribute('tabindex', '0');
+        else viewport.removeAttribute('tabindex');
+        position = viewport.scrollLeft = 0;
+        keyboardFocus = false;
+        measure();
+    }
+    section.addEventListener('showcase:refresh', refresh);
+    refresh();
     requestAnimationFrame(tick);
 });

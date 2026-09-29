@@ -5,7 +5,7 @@ from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core import serializers
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -16,6 +16,7 @@ from main.forms import ProjectForm
 from main.models import Achievement, Experience, Project
 from main.permissions import can_edit_projects
 from main.project_queries import PUBLIC_PROJECT_FIELDS, public_projects, with_star_status
+from main.project_urls import safe_project_url
 
 
 def safe_next_url(request, fallback):
@@ -63,11 +64,24 @@ def show_achievements(request):
 
 @require_GET
 def get_projects_json(request):
-    projects = public_projects(request.GET.get("title", ""))
-    return HttpResponse(
-        serializers.serialize("json", projects, fields=PUBLIC_PROJECT_FIELDS),
-        content_type="application/json",
+    projects = with_star_status(
+        public_projects(request.GET.get("title", "")), request.user,
     )
+    # Keep the public serializer shape while adding aggregate, viewer-specific
+    # star data. Never include the identities of accounts that starred a project.
+    data = [
+        {
+            "model": "main.project",
+            "pk": str(project.pk),
+            "fields": {
+                **{field: getattr(project, field) for field in PUBLIC_PROJECT_FIELDS},
+                "star_count": project.star_count,
+                "is_starred": project.is_starred,
+            },
+        }
+        for project in projects
+    ]
+    return JsonResponse(data, safe=False)
 
 
 @require_GET
@@ -81,23 +95,10 @@ def get_projects_xml(request):
 
 @require_GET
 def show_projects(request):
-    # Follow the tutorial's data-delivery exercise: JSON -> model objects -> HTML.
-    json_response = get_projects_json(request)
-    projects = [
-        item.object
-        for item in serializers.deserialize("json", json_response.content.decode("utf-8"))
-    ]
-    # Enrich the deserialized objects in bulk, without loading star-givers' accounts.
-    star_rows = with_star_status(
-        Project.objects.filter(pk__in=[project.pk for project in projects]), request.user,
-    ).values_list("pk", "star_count", "is_starred")
-    star_status = {pk: (count, starred) for pk, count, starred in star_rows}
-    for project in projects:
-        project.star_count, project.is_starred = star_status.get(project.pk, (0, False))
     context = {
         "name": "Noe Andrew",
         "active_page": "projects",
-        "project_list": projects,
+        "form": ProjectForm(),
         "title_query": request.GET.get("title", "").strip(),
         "can_edit_projects": can_edit_projects(request.user),
     }
@@ -113,6 +114,8 @@ def project_detail(request, project_id):
         "name": "Noe Andrew",
         "active_page": "projects",
         "project": project,
+        "project_url": safe_project_url(project.project_url),
+        "project_image_url": safe_project_url(project.project_image_url),
         "can_edit_projects": can_edit_projects(request.user),
     })
 
@@ -137,6 +140,24 @@ def create_project(request):
         "submit_label": "Tambah Proyek",
     }
     return render(request, "projects_form.html", context)
+
+
+@require_POST
+def create_project_ajax(request):
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"message": "Hanya pemilik portofolio yang dapat menambahkan proyek."},
+            status=403,
+        )
+
+    form = ProjectForm(request.POST)
+    if form.is_valid():
+        project = form.save()
+        return JsonResponse(
+            {"message": "Proyek berhasil ditambahkan.", "pk": str(project.pk)},
+            status=201,
+        )
+    return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
 
 
 @login_required(login_url="main:login")

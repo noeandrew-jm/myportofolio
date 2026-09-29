@@ -44,14 +44,15 @@ Buka <http://127.0.0.1:8000/>. Biarkan terminal server tetap berjalan; tekan `Ct
 | `/` | Profil, kontak, dan tiga focus areas | Context profil di `main/views.py`; focus areas statis |
 | `/experience/` | Daftar pengalaman, kategori, dan status | Model `Experience` |
 | `/achievements/` | Daftar prestasi, penghargaan, dan gambar | Model `Achievement` |
-| `/projects/` | Daftar proyek dan pencarian `?title=...` | Model `Project`, melalui serialisasi/deserialisasi JSON |
+| `/projects/` | Daftar proyek dan pencarian `?title=...` | Model `Project`, dimuat dengan AJAX dari JSON |
 | `/projects/<uuid>/` | Detail proyek, jumlah star, dan status star pengguna | Publik; model `Project` |
 | `/projects/add/` | Form tambah proyek | Superuser; `ProjectForm` dengan validasi dan CSRF |
+| `/projects/add-ajax/` | Tambah proyek dari modal tanpa reload | Superuser; POST dengan `ProjectForm` dan CSRF; respons JSON |
 | `/projects/<uuid>/edit/` | Form ubah proyek | Anggota grup `Editor` atau superuser; `ProjectForm` dan CSRF |
 | `/projects/<uuid>/delete/` | Hapus proyek lewat konfirmasi | Superuser; POST dengan CSRF; GET tidak menghapus |
 | `/projects/<uuid>/star/` | Memberi atau membatalkan star | Pengguna login; hanya POST dengan CSRF |
-| `/api/projects/` | Data proyek berformat JSON, filter `?title=...` | Publik; Django serializer dengan daftar field publik |
-| `/api/projects/xml/` | Percobaan format XML, filter `?title=...` | Publik; daftar field publik yang sama dengan JSON |
+| `/api/projects/` | Data proyek berformat JSON, filter `?title=...` | Publik; field proyek, jumlah star, dan status star pengguna |
+| `/api/projects/xml/` | Percobaan format XML, filter `?title=...` | Publik; field proyek tanpa relasi akun atau metadata star |
 | `/register/`, `/login/`, `/logout/` | Registrasi, login, dan logout | Autentikasi dan sesi bawaan Django |
 | `/admin/` | Pengelolaan pengalaman, prestasi, dan proyek | Django admin; perlu login |
 
@@ -75,7 +76,9 @@ Implementasi melanjutkan `ProjectForm` yang sudah mulai dibuat pada proyek ini d
 
 Form menampilkan error tanpa menghilangkan input. Setelah berhasil menyimpan, halaman Projects menampilkan pesan sukses. Pencarian judul memangkas spasi awal/akhir dan tidak membedakan kapitalisasi. Tombol **Hapus Proyek** membuka konfirmasi; Batal, tombol tutup, klik latar, atau Escape tidak menghapus data. Hanya tombol **Ya, Hapus** yang mengirim POST dengan token CSRF. Konfirmasi menggunakan Popover API pada browser modern.
 
-Sesuai latihan tutorial, `show_projects` memanggil `get_projects_json`, kemudian melakukan `serializers.deserialize` sebelum merender HTML. Ini demonstrasi alur data; belum ada request HTTP terpisah atau JavaScript fetch. Endpoint XML disediakan terpisah agar percobaan format XML tidak memutus alur JSON pada halaman Projects.
+Tutorial 05 mengganti alur serialisasi/deserialisasi di server: `show_projects` kini hanya merender kerangka halaman dan form. `static/js/projects.js` mengambil JSON melalui Fetch API, menampilkan loading/error/empty state, lalu merakit kartu dengan DOM dan `textContent`. Pencarian berjalan 300 ms setelah pengguna berhenti mengetik; Enter langsung mencari. `AbortController` membatalkan permintaan lama agar hasil pencarian terbaru tidak tertimpa. Tombol Reset dan Coba Lagi juga bekerja tanpa reload. Kartu geser diperbarui setiap data berubah.
+
+Tombol **Tambah Proyek** membuka modal Popover API untuk superuser. Form dikirim ke `/projects/add-ajax/` dengan `FormData` serta token CSRF melalui header dan field form. Respons 201 menutup modal, menampilkan toast, dan memuat ulang daftar dengan filter yang masih aktif. Respons 400 menampilkan kesalahan validasi pada form dan toast; 403 menolak akun tanpa izin. Tombol simpan dinonaktifkan selama pengiriman. Endpoint form klasik, edit, hapus, dan star tetap tersedia; edit/hapus/star masih memakai navigasi atau POST biasa.
 
 Untuk memeriksa data lewat browser atau Postman, buat proyek lewat form, kemudian gunakan GET:
 
@@ -85,13 +88,15 @@ http://127.0.0.1:8000/api/projects/?title=portfolio
 http://127.0.0.1:8000/api/projects/xml/?title=portfolio
 ```
 
-JSON berbentuk daftar objek Django dengan `model`, `pk`, dan `fields`. Field publik dibatasi pada `title`, `description`, `tech_stack`, `project_url`, dan `project_image_url`; UUID proyek tetap berada di `pk`. Relasi `starred_by`, ID pengguna pemberi star, username, email, dan data autentikasi tidak dikirim. Pembatasan yang sama diterapkan pada XML. Database kosong menghasilkan `[]`; judul tanpa hasil tidak menyebabkan error. Endpoint API ini hanya membaca data. Pemilihan field secara eksplisit memakai dukungan [subset field pada serializer Django](https://docs.djangoproject.com/en/5.2/topics/serialization/#subset-of-fields).
+JSON berbentuk daftar objek dengan `model`, `pk`, dan `fields`. Field publik berisi `title`, `description`, `tech_stack`, `project_url`, dan `project_image_url`, ditambah `star_count` dan `is_starred` untuk pengguna saat ini; UUID proyek berada di `pk`. Relasi `starred_by`, ID pengguna pemberi star, username, email, dan data autentikasi tidak dikirim. XML tetap memakai serializer Django untuk lima field proyek tanpa metadata star. Database kosong menghasilkan `[]`; judul tanpa hasil tidak menyebabkan error. Kedua endpoint GET hanya membaca data.
+
+Data JSON ditampilkan melalui `textContent`, termasuk judul, deskripsi, teknologi, dan pesan toast, sehingga payload HTML lama tetap menjadi teks. URL pada kartu dan halaman detail dibatasi ke HTTP/HTTPS, termasuk untuk data lama yang belum melewati validasi form. `ProjectForm` menghapus tag HTML pada ketiga field teks, menolak nilai wajib yang menjadi kosong, dan memvalidasi URL. Pembersihan input berlaku pada tambah klasik, tambah AJAX, dan edit; ini melengkapi perlindungan DOM, bukan menggantikannya. Komponen toast tersedia pada seluruh halaman melalui `showToast(title, message, type, duration)` dengan tipe `success`, `error`, atau `normal`.
 
 URL gambar boleh memakai URL publik langsung. Jika memakai Google Drive, unggah gambar milik sendiri, atur **Anyone with the link → Viewer**, ambil ID berkas, kemudian isi field URL Gambar Proyek dengan `https://drive.google.com/thumbnail?id=FILE_ID&sz=w1000`. Form menyimpan URL, bukan mengunggah berkas. Akses dan keberhasilan pemuatan gambar eksternal bergantung pada penyedia gambar.
 
 Konfigurasi `CSRF_TRUSTED_ORIGINS` sudah memakai `https://noe-andrew-myportofolio.pws.cs.ui.ac.id` tanpa slash penutup. Origin terdiri dari skema dan host, bukan path halaman; lihat [pengaturan CSRF Django](https://docs.djangoproject.com/en/5.2/ref/settings/#csrf-trusted-origins). Token CSRF tetap diwajibkan pada semua form POST.
 
-Tambah dan hapus proyek memerlukan superuser; edit memerlukan anggota grup `Editor` atau superuser. Pemeriksaan dilakukan pada server, termasuk ketika URL diakses langsung atau POST dikirim tanpa melalui tombol. Pengguna yang login tetapi tidak berhak memperoleh HTTP 403. Pengunjung yang belum login diarahkan ke login saat mengakses aksi yang memerlukan akun; POST juga harus lolos pemeriksaan CSRF. Tombol aksi hanya ditampilkan untuk peran yang sesuai.
+Tambah dan hapus proyek memerlukan superuser; edit memerlukan anggota grup `Editor` atau superuser. Pemeriksaan dilakukan pada server, termasuk ketika URL diakses langsung atau POST dikirim tanpa melalui tombol. Pengguna yang login tetapi tidak berhak memperoleh HTTP 403. Pengunjung yang belum login diarahkan ke login saat mengakses aksi klasik yang memerlukan akun; endpoint tambah AJAX membalas JSON 403 tanpa redirect. Semua POST juga harus lolos pemeriksaan CSRF. Tombol aksi hanya ditampilkan untuk peran yang sesuai.
 
 Yang masih membutuhkan tindakan pemilik: isi proyek dan gambar pribadi, unggah/atur berbagi Google Drive bila digunakan, deploy perubahan ke PWS serta periksa Logs dan migrasi di sana, dan kumpulkan bukti/tugas pada platform kuliah bila diminta. Pengujian lokal tidak memverifikasi deployment atau pengumpulan.
 
@@ -128,7 +133,7 @@ Checklist implementasi dan pemeriksaan manual empat peran tersedia di [checklist
 .\env\Scripts\python.exe manage.py test --verbosity 2
 ```
 
-Suite Django mencakup profil dan kontak, navigasi bersama, URL tidak ditemukan, model/status pengalaman, prestasi, serta Projects. Tes Projects mencakup validasi form, CRUD sesuai empat peran, daftar/detail publik, kontrol aksi, star/unstar, pencarian, format JSON/XML tanpa identitas pemberi star, kondisi kosong, escaping, pesan sukses, tujuan login, dan CSRF. Tes menggunakan database pengujian tersendiri; pembersihan data seed dalam tes tidak menghapus data portofolio lokal. Jumlah tes terkini ditampilkan oleh runner.
+Suite Django mencakup profil dan kontak, navigasi bersama, URL tidak ditemukan, model/status pengalaman, prestasi, serta Projects. Tes Projects mencakup validasi form, CRUD sesuai empat peran, daftar/detail publik, kontrol aksi, star/unstar, pencarian, format JSON/XML tanpa identitas pemberi star, kondisi kosong, escaping, pesan sukses, tujuan login, dan CSRF. Tes AJAX juga memeriksa status respons, sanitasi, metadata star per pengguna, serta efisiensi query. Tes menggunakan database pengujian tersendiri; pembersihan data seed dalam tes tidak menghapus data portofolio lokal. Jumlah tes terkini ditampilkan oleh runner.
 
 Saat mengubah teks antarmuka, sesuaikan ekspektasi tes dengan perilaku yang dimaksud. Halaman profil menggunakan bahasa Inggris; form dan aksi Projects mengikuti bahasa Indonesia pada tutorial. Data seed perlu diisolasi agar tes pengalaman selesai tidak ikut membaca pengalaman lain yang masih berlangsung.
 
@@ -151,10 +156,15 @@ Hapus `--headless` untuk melihat Chrome dikendalikan otomatis, atau tambahkan `-
 | Tutorial form dan data delivery | Model/form `Project`, tambah/cari/hapus, JSON/XML, konfirmasi, pesan sukses, dan CSRF |
 | Tutorial Selenium dan Burp Suite | Otomasi login, cookie, akses superuser, logout; tes CSRF dan panduan intersepsi request lokal |
 | Tugas 4 | Grup Editor, otorisasi empat peran di server dan template, detail publik, star dengan CSRF, JSON/XML tanpa identitas pengguna, serta pengujian akses |
+| Tutorial 05 | Daftar dan pencarian AJAX, debounce, modal tambah, toast global, perlindungan XSS/CSRF, serta pengujian browser |
 
 Saat mengambil perubahan Tugas 2 dari Git, jalankan ulang instalasi dependency bila `requirements.txt` berubah, kemudian `migrate` dan `collectstatic --noinput` sebelum menyalakan server. Tidak perlu membuat migrasi baru hanya untuk menambahkan objek melalui admin.
 
 Untuk Tugas 3, jalankan `migrate` sebelum mencoba form dan API Projects. Untuk Tutorial 04/Tugas 4, jalankan kembali `migrate`, tetapkan anggota grup `Editor` melalui admin sesuai panduan di atas, lalu jalankan pemeriksaan Django dan Selenium. Dependensi Selenium berada di `requirements-dev.txt` sehingga perlu diinstal terpisah pada lingkungan pengembangan.
+
+Tutorial 05 tidak menambah migrasi atau dependency. Jika memakai hasil `collectstatic`, jalankan kembali `collectstatic --noinput` setelah mengambil aset JavaScript/CSS terbaru. Suite browser mencakup pembacaan dan pencarian AJAX, modal tambah, validasi, CSRF, toast, payload XSS lama, serta aksi star, detail, hapus, dan edit oleh Editor.
+
+Audit ulang 29 September 2026 lulus **96 tes Django dan 7 skenario Selenium Chrome**. Regresi tambahan memeriksa respons pencarian yang terlambat, Enter tanpa pencarian ganda, kegagalan jaringan/HTML, serta filter aktif setelah menambah proyek. Respons tambah baru dianggap berhasil jika server mengirim HTTP 201 dengan UUID proyek valid; respons lain mempertahankan input. Rincian kesesuaian dan penyesuaian contoh ada di [checklist Tutorial 05](docs/task-checklist.md#audit-tutorial-05--29-september-2026).
 
 ### Tugas 1
 
