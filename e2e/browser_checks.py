@@ -195,6 +195,78 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         self.assertIn("Belum ada proyek", self.driver.find_element(By.ID, "empty").text)
         print("[PASS] AJAX read, debounce, loading/empty/error/retry, dan legacy XSS", flush=True)
 
+    def test_ajax_search_debounce_and_composition(self):
+        Project.objects.all().delete()
+        alpha = Project.objects.create(title="Alpha portfolio", description="First result", tech_stack="Django")
+        beta = Project.objects.create(title="Beta dashboard", description="Final query result", tech_stack="Python")
+        self.open_page("show_projects")
+        self.wait_for_titles([alpha.title, beta.title])
+        self.driver.execute_script("""
+            window.ajaxDocumentMarker = 'unchanged';
+            window.originalFetch = window.fetch;
+            window.projectReads = [];
+            window.projectReadTimes = [];
+            window.fetch = (url, options) => {
+                const parsed = new URL(url, location.href);
+                if (parsed.pathname === arguments[0]) {
+                    window.projectReads.push(parsed.searchParams.get('title'));
+                    window.projectReadTimes.push(performance.now());
+                }
+                return window.originalFetch(url, options);
+            };
+        """, reverse("main:get_projects_json"))
+        # Each keystroke resets the timer: even after 500 ms overall, no request
+        # should be sent until the last input has been idle for 300 ms.
+        reads_before_idle = self.driver.execute_async_script("""
+            const done = arguments[0];
+            const field = document.getElementById('search-input');
+            const queries = ['B', 'Be', 'Beta'];
+            function typeNext(index) {
+                field.value = queries[index];
+                window.lastSearchInputAt = performance.now();
+                field.dispatchEvent(new Event('input', {bubbles: true}));
+                if (index < queries.length - 1) setTimeout(() => typeNext(index + 1), 150);
+                else setTimeout(() => done([...window.projectReads]), 200);
+            }
+            typeNext(0);
+        """)
+        self.assertEqual(reads_before_idle, [])
+        self.wait_for_titles([beta.title])
+        self.assertEqual(self.driver.execute_script("return window.projectReads;"), ["Beta"])
+        # Allow small differences in browser timer precision.
+        self.assertGreaterEqual(self.driver.execute_script(
+            "return window.projectReadTimes[0] - window.lastSearchInputAt;"
+        ), 290)
+        self.assert_same_document()
+
+        # Starting IME composition cancels a pending search. Intermediate text
+        # and Enter to confirm a character must not issue an AJAX request.
+        reads_during_composition = self.driver.execute_async_script("""
+            const done = arguments[0];
+            window.projectReads = [];
+            const field = document.getElementById('search-input');
+            field.value = 'Alpha';
+            field.dispatchEvent(new Event('input', {bubbles: true}));
+            field.dispatchEvent(new CompositionEvent('compositionstart', {bubbles: true}));
+            field.value = 'Al';
+            field.dispatchEvent(new InputEvent('input', {bubbles: true, isComposing: true}));
+            field.value = 'Alp';
+            field.dispatchEvent(new Event('input', {bubbles: true}));
+            document.getElementById('project-search-form').requestSubmit();
+            setTimeout(() => done([...window.projectReads]), 400);
+        """)
+        self.assertEqual(reads_during_composition, [])
+        self.driver.execute_script("""
+            const field = document.getElementById('search-input');
+            field.value = 'Alpha';
+            field.dispatchEvent(new CompositionEvent('compositionend', {bubbles: true}));
+            field.dispatchEvent(new InputEvent('input', {bubbles: true, isComposing: false}));
+        """)
+        self.wait_for_titles([alpha.title])
+        self.assertEqual(self.driver.execute_script("return window.projectReads;"), ["Alpha"])
+        self.assert_same_document()
+        print("[PASS] Debounce dari input terakhir, satu request, dan komposisi IME tanpa reload", flush=True)
+
     def test_ajax_initial_query_enter_and_out_of_order_responses(self):
         Project.objects.all().delete()
         alpha = Project.objects.create(title="Alpha portfolio", description="Initial filter", tech_stack="Django")

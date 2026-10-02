@@ -14,8 +14,10 @@
     const modal = document.getElementById('add-project-modal');
     const placeholderId = '00000000-0000-0000-0000-000000000000';
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const searchDebounceMs = 300;
     let projectsController;
     let searchTimer;
+    let composingSearch = false;
     let submitting = false;
 
     function displayPageSection(state) {
@@ -160,15 +162,28 @@
         return fetchProjects(searchInput.value.trim());
     }
 
-    searchInput.addEventListener('input', () => {
+    function scheduleSearch(event) {
         clearTimeout(searchTimer);
         // Invalidate an older result immediately, even during the debounce delay.
         projectsController?.abort();
-        resetButton.classList.toggle('hide', !searchInput.value);
-        searchTimer = setTimeout(searchProjects, 300);
+        resetButton.classList.toggle('hide', !searchInput.value.trim());
+        if (composingSearch || event?.isComposing) return;
+        searchTimer = setTimeout(searchProjects, searchDebounceMs);
+    }
+
+    searchInput.addEventListener('input', scheduleSearch);
+    searchInput.addEventListener('compositionstart', () => {
+        composingSearch = true;
+        clearTimeout(searchTimer);
+        projectsController?.abort();
+    });
+    searchInput.addEventListener('compositionend', () => {
+        composingSearch = false;
+        scheduleSearch();
     });
     searchForm.addEventListener('submit', event => {
         event.preventDefault();
+        if (composingSearch) return;
         searchProjects();
     });
     resetButton.addEventListener('click', () => {
