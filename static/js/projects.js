@@ -20,7 +20,9 @@
 
     function displayPageSection(state) {
         for (const name of ['loading', 'error', 'empty', 'grid']) {
-            document.getElementById(name).classList.toggle('hide', name !== state);
+            const section = document.getElementById(name);
+            section.hidden = name !== state;
+            section.classList.toggle('hide', section.hidden);
         }
         grid.setAttribute('aria-busy', String(state === 'loading'));
     }
@@ -140,6 +142,11 @@
             const fragment = document.createDocumentFragment();
             projects.forEach(project => fragment.append(buildProjectCardElement(project)));
             cards.replaceChildren(fragment);
+            if (!projects.length) {
+                document.getElementById('empty-message').textContent = query
+                    ? `Tidak ada proyek yang cocok dengan pencarian "${query}".`
+                    : 'Belum ada proyek yang ditambahkan.';
+            }
             displayPageSection(projects.length ? 'grid' : 'empty');
             grid.dispatchEvent(new Event('showcase:refresh'));
         } catch (error) {

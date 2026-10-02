@@ -67,14 +67,18 @@ def get_projects_json(request):
     projects = with_star_status(
         public_projects(request.GET.get("title", "")), request.user,
     )
-    # Keep the public serializer shape while adding aggregate, viewer-specific
-    # star data. Never include the identities of accounts that starred a project.
+    # Build JSON manually, including aggregate stars and this viewer's status.
+    # Keep the existing model/pk/fields shape without exposing account records.
     data = [
         {
             "model": "main.project",
             "pk": str(project.pk),
             "fields": {
-                **{field: getattr(project, field) for field in PUBLIC_PROJECT_FIELDS},
+                "title": project.title,
+                "description": project.description,
+                "tech_stack": project.tech_stack,
+                "project_url": project.project_url,
+                "project_image_url": project.project_image_url,
                 "star_count": project.star_count,
                 "is_starred": project.is_starred,
             },

@@ -223,6 +223,24 @@ class ProjectAjaxDataTests(TestCase):
             [],
         )
 
+    def test_json_reflects_star_and_unstar_for_the_logged_in_user(self):
+        self.client.force_login(self.viewer)
+        star_url = reverse("main:toggle_star", args=[self.project.pk])
+        json_url = reverse("main:get_projects_json")
+        for count, is_starred in ((3, True), (2, False)):
+            with self.subTest(is_starred=is_starred):
+                self.assertEqual(self.client.post(star_url).status_code, 302)
+                rows = {row["pk"]: row["fields"] for row in self.client.get(json_url).json()}
+                self.assertEqual(rows[str(self.project.pk)]["star_count"], count)
+                self.assertIs(rows[str(self.project.pk)]["is_starred"], is_starred)
+
+    def test_empty_database_returns_an_empty_json_array(self):
+        Project.objects.all().delete()
+        response = self.client.get(reverse("main:get_projects_json"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/json")
+        self.assertEqual(response.json(), [])
+
     def test_star_json_requires_one_query_for_many_projects(self):
         Project.objects.bulk_create([
             Project(**project_payload(title=f"Additional project {number}"))

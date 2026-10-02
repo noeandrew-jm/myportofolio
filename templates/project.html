@@ -3,7 +3,7 @@
 {% block title %}Projects - {{ name }}{% endblock title %}
 {% block meta %}
 {{ block.super }}
-<script src="{% static 'js/projects.js' %}?v=ajax-20260929" defer></script>
+<script src="{% static 'js/projects.js' %}?v=project-states-20261002" defer></script>
 {% endblock meta %}
 {% block content %}
 <main id="projects-app"
@@ -39,15 +39,20 @@
             <button type="submit" class="button">Cari</button>
             <button id="reset-search" type="button" class="button button-secondary{% if not title_query %} hide{% endif %}">Reset</button>
         </form>
-        <div id="loading" class="projects-feedback" role="status"><p>Memuat proyek...</p></div>
-        <div id="error" class="projects-feedback hide" role="alert">
-            <p>Gagal memuat data proyek. Silakan coba lagi.</p>
+        <div id="loading" class="projects-feedback" role="status" aria-live="polite" aria-atomic="true">
+            <span class="projects-loading-spinner" aria-hidden="true"></span>
+            <p>Memuat proyek...</p>
+        </div>
+        <div id="error" class="projects-feedback hide" role="alert" aria-atomic="true" hidden>
+            <p>Gagal memuat data proyek. Periksa koneksi Anda, lalu coba lagi.</p>
             <button id="retry-projects" type="button" class="button button-secondary">Coba Lagi</button>
         </div>
-        <div id="empty" class="projects-feedback hide" role="status"><p>Belum ada proyek yang ditambahkan atau ditemukan.</p></div>
+        <div id="empty" class="projects-feedback hide" role="status" aria-live="polite" aria-atomic="true" hidden>
+            <p id="empty-message">Belum ada proyek yang ditambahkan.</p>
+        </div>
         <noscript><p class="empty-state">Aktifkan JavaScript untuk memuat dan mencari proyek.</p></noscript>
     </section>
-    <section id="grid" class="showcase showcase--projects hide" aria-label="Project cards" data-showcase aria-busy="true">
+    <section id="grid" class="showcase showcase--projects hide" aria-label="Project cards" data-showcase aria-busy="true" hidden>
         <p class="showcase-hint">Hover to pause <span aria-hidden="true">&middot;</span> Swipe to explore</p>
         <div class="showcase-viewport" tabindex="0" aria-label="Project cards, scroll horizontally">
         <div class="showcase-track">

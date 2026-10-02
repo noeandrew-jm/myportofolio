@@ -122,6 +122,17 @@ html.project-modal-open { overflow: hidden; }
     overflow-wrap: anywhere;
 }
 .projects-feedback .button { margin-top: 1rem; }
+.projects-loading-spinner {
+    display: inline-block;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-bottom: 0.5rem;
+    border: 2px solid var(--line);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: projects-loading-spin 800ms linear infinite;
+}
+@keyframes projects-loading-spin { to { transform: rotate(360deg); } }
 .showcase--projects .showcase-description,
 .showcase--projects .content-item-label { max-width: 100%; overflow-wrap: anywhere; }
 .hide, [hidden] { display: none !important; }
@@ -143,4 +154,5 @@ html.project-modal-open { overflow: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
     .toast-component { transition: none; }
+    .projects-loading-spinner { animation: none; }
 }

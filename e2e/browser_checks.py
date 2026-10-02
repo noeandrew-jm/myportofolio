@@ -124,7 +124,10 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                 const parsed = new URL(url, location.href);
                 if (parsed.pathname === arguments[0]) {
                     window.projectReads.push(parsed.searchParams.get('title'));
-                    if (window.failProjectRead) return Promise.resolve(new Response('', {status: 503}));
+                    if (window.failProjectRead === 'http') return Promise.resolve(new Response('', {status: 503}));
+                    if (window.failProjectRead === 'network') return Promise.reject(new TypeError('Failed to fetch'));
+                    if (window.failProjectRead === 'invalid-json') return Promise.resolve(new Response('invalid JSON'));
+                    if (window.failProjectRead === 'invalid-list') return Promise.resolve(new Response('{}'));
                     if (window.holdProjectRead) return new Promise(resolve => {
                         window.releaseProjectRead = () => resolve(window.originalFetch(url, options));
                     });
@@ -140,6 +143,8 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         """, reverse("main:get_projects_json"))
         self.wait.until(lambda driver: driver.execute_script("return typeof window.releaseProjectRead === 'function';"))
         self.assertTrue(self.driver.find_element(By.ID, "loading").is_displayed())
+        self.assertEqual(self.driver.find_element(By.ID, "grid").get_attribute("aria-busy"), "true")
+        self.assertFalse(self.driver.find_element(By.ID, "grid").is_displayed())
         self.assertEqual(self.driver.execute_script("return window.projectReads;"), ["aLpHa"])
         self.driver.execute_script("window.holdProjectRead = false; window.releaseProjectRead();")
         self.wait_for_titles([alpha.title])
@@ -148,14 +153,22 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         self.search("No result")
         self.wait.until(EC.visibility_of_element_located((By.ID, "empty")))
         self.assertEqual(self.driver.find_elements(By.CSS_SELECTOR, "#project-cards > .showcase-card"), [])
-        self.assertIn("Belum ada proyek yang ditambahkan atau ditemukan", self.driver.find_element(By.ID, "empty").text)
-        self.driver.execute_script("window.failProjectRead = true;")
-        self.search("Beta")
-        self.wait.until(EC.visibility_of_element_located((By.ID, "error")))
-        self.driver.execute_script("window.failProjectRead = false;")
-        self.click("#retry-projects")
-        self.wait_for_titles([beta.title])
-        self.assert_same_document()
+        self.assertEqual(
+            self.driver.find_element(By.ID, "empty").text,
+            'Tidak ada proyek yang cocok dengan pencarian "No result".',
+        )
+        for failure in ("http", "network", "invalid-json", "invalid-list"):
+            with self.subTest(failure=failure):
+                self.driver.execute_script("window.failProjectRead = arguments[0];", failure)
+                self.search("Beta")
+                self.wait.until(EC.visibility_of_element_located((By.ID, "error")))
+                for state in ("loading", "empty", "grid"):
+                    self.assertFalse(self.driver.find_element(By.ID, state).is_displayed())
+                self.driver.execute_script("window.failProjectRead = false;")
+                self.click("#retry-projects")
+                self.wait_for_titles([beta.title])
+                self.assertEqual(self.driver.find_element(By.ID, "grid").get_attribute("aria-busy"), "false")
+                self.assert_same_document()
 
         # Insert legacy content directly: form sanitization cannot protect old
         # records, so the client must render text and reject dangerous URL schemes.
