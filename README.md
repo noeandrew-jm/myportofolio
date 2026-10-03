@@ -182,6 +182,14 @@ Audit ulang 29 September 2026 lulus **96 tes Django dan 7 skenario Selenium Chro
 
 3. `makemigrations` membuat berkas instruksi perubahan struktur berdasarkan perbedaan model dan riwayat migrasi; perintah ini belum menerapkan perubahan tabel. `migrate` menjalankan instruksi migrasi yang belum diterapkan pada database yang aktif. Contohnya, penambahan model `Achievement` menghasilkan `0003_achievement.py`, kemudian `migrate` membuat tabelnya. Jika kelak ditambah field `organizer = models.CharField(max_length=255, blank=True)`, jalankan `makemigrations main`, tinjau berkas yang dihasilkan, commit berkas tersebut, lalu jalankan `migrate` pada lokal dan deployment. Migrasi data `0004_seed_achievements.py` secara terpisah memasukkan prestasi yang sebelumnya berada di HTML. Menambah satu prestasi lewat admin hanya mengubah isi tabel sehingga tidak memerlukan `makemigrations`.
 
+### Assignment 5
+
+1. Debouncing adalah cara menunda pencarian sampai pengguna berhenti mengetik selama jeda tertentu. Di proyek saya, jedanya 300 ms. Setiap ada input baru, timer sebelumnya dibatalkan dengan `clearTimeout`, lalu dibuat lagi dengan `setTimeout`. Misalnya saya mengetik "React" dengan cepat, pencarian baru dikirim setelah jeda terakhir, sehingga server tidak menerima request untuk setiap huruf. Ini mengurangi jumlah request, beban server, dan pembaruan daftar yang terlalu sering. Debouncing membatalkan timer yang belum berjalan; untuk request yang sudah dikirim, kode saya juga memakai `AbortController` dan mengabaikan respons lama agar hasil pencarian terbaru tidak tertimpa. Menekan Enter tetap menjalankan pencarian langsung. Rujukan: [MDN: Debounce](https://developer.mozilla.org/en-US/docs/Glossary/Debounce).
+
+2. `fetch()` mengembalikan `Promise`, jadi responsnya tidak langsung tersedia. Saya memakai `await fetch(...)` untuk menunggu objek `Response` sebelum memeriksa statusnya. Setelah itu, `await response.json()` menunggu isi respons dibaca dan diubah menjadi data JavaScript. Dua tahap ini berbeda: respons sudah bisa tersedia saat seluruh isinya masih dalam proses diterima. `await` menunda kelanjutan fungsi `async` tersebut, sementara halaman tetap bisa menerima interaksi. Jika saya menulis `const response = fetch(url)` tanpa `await`, request tetap dikirim, tetapi `response` berisi `Promise`. Memanggil `response.json()` langsung akan menghasilkan error karena metode itu milik `Response`. Tanpa `await`, hasilnya masih bisa diproses menggunakan `.then()`. Kode saya juga memeriksa `response.ok`, karena status HTTP seperti 400 atau 500 tidak otomatis membuat `fetch()` menolak Promise. Rujukan: [MDN: Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) dan [MDN: await](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/await).
+
+3. Cross-Site Scripting (XSS) adalah serangan dengan menyisipkan kode berbahaya ke data yang ditampilkan website, sehingga browser pengguna menjalankannya dalam konteks website tersebut. Penyerang bisa membaca data di halaman atau menjalankan aksi dengan sesi korban. Misalnya, judul proyek berisi `<img src=x onerror=alert('XSS')>` bisa menjalankan JavaScript jika dimasukkan lewat `innerHTML` tanpa perlindungan. Template Django secara default melakukan autoescaping pada variabel yang ditampilkan sebagai HTML, sehingga karakter seperti `<` dan `>` ditampilkan sebagai teks. Data JSON yang dimasukkan ke halaman lewat JavaScript tidak melewati proses itu, jadi perlindungannya harus diterapkan saat memperbarui halaman. Risiko XSS bergantung pada cara data dimasukkan ke DOM. Di proyek saya, judul, deskripsi, dan pesan memakai `textContent` agar tetap menjadi teks; URL dibatasi ke HTTP/HTTPS, dan input form dibersihkan dengan `strip_tags`. Menghapus tag saja belum cukup: data tetap harus ditampilkan dengan aman. Template Django juga perlu dijaga agar data pengguna tidak sembarangan diberi filter `safe`. Rujukan: [Django: perlindungan XSS](https://docs.djangoproject.com/en/5.2/topics/security/#cross-site-scripting-xss-protection) dan [MDN: innerHTML](https://developer.mozilla.org/en-US/docs/Web/API/Element/innerHTML).
+
 ## Deployment dan pengumpulan
 
 URL proyek: <https://noe-andrew-myportofolio.pws.cs.ui.ac.id/>. Database PWS terpisah dari SQLite lokal. Atur environment produksi melalui tab Environs PWS sesuai konfigurasi proyek, termasuk `PRODUCTION=True`, `SECRET_KEY`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, dan `SCHEMA`. Buat `SECRET_KEY` baru secara acak dan rahasia; jangan masukkan nilainya ke Git atau README.
@@ -203,7 +211,29 @@ Pengumpulan Tugas 2 menggunakan tautan **commit final yang sudah di-push**, buka
 
 Untuk **Individual Assignment 4**, tenggat pada instruksi yang dilampirkan adalah **Senin, 28 September 2026, pukul 23.59 WIB**; deadline **Tutorial 04** juga dipindahkan ke waktu yang sama. Siapkan commit akhir dengan pesan deskriptif mengikuti Conventional Commits, push sebelum tenggat, pastikan repositori GitHub publik, dan kirim tautan commit melalui slot SCELE yang sesuai. Commit yang di-push setelah tenggat tidak diterima menurut instruksi tugas. Pengerjaan melalui AI pada sesi Tugas 4 tidak melakukan commit, push, deployment, atau pengumpulan atas nama pemilik.
 
-## Penggunaan AI
+## AI Disclosure
+
+Dokumentasi berikut menggunakan format:
+
+`[id] / [assignment/tutorial index] - [short description]: [link to chat]`
+
+**001 / 3 - Commit message yang tepat untuk Tugas 3: [https://chatgpt.com/s/t_6ab0d899e8a4819190eda2ffe90e327d](https://chatgpt.com/s/t_6ab0d899e8a4819190eda2ffe90e327d)**
+
+Membantu saya menentukan commit message yang sesuai dengan perubahan yang saya buat dalam tugas.
+
+**002 / 3 - Memvalidasi jawaban pertanyaan refleksi: [https://chatgpt.com/s/t_6ab0da6fca40819198a3d50eba78ca37](https://chatgpt.com/s/t_6ab0da6fca40819198a3d50eba78ca37)**
+
+Membantu saya memperbaiki alur penulisan jawaban pertanyaan refleksi.
+
+**003 / 3 - Pemahaman serta solusi dari error: [https://chatgpt.com/s/t_6ab0e187e11481919a0e9b178f0a9dc7](https://chatgpt.com/s/t_6ab0e187e11481919a0e9b178f0a9dc7)**
+
+Membantu saya memahami dan menyelesaikan masalah karena branch `main` di GitHub memiliki commit yang belum ada pada branch `master` lokal saya.
+
+**004 / 4 - Pemahaman mengenai sumber data dan variabel: [https://chatgpt.com/s/p_6aba81fbee4c819185c974f802759b76](https://chatgpt.com/s/p_6aba81fbee4c819185c974f802759b76)**
+
+Membantu saya menemukan dan memahami variabel perulangan serta sumber data pada `experience.html`.
+
+### Ringkasan bantuan AI pada proyek
 
 Proyek ini menggunakan bantuan **OpenAI Codex**. Pada sesi audit dan penyelesaian checklist, bantuan mencakup pemeriksaan instruksi tugas terhadap kode, implementasi model dan migrasi `Achievement`, pemindahan konten lama ke database, perbaikan HTML dan tautan, penyamaan template navbar/footer, penyesuaian serta penambahan tes, dan penyusunan dokumentasi ini.
 
