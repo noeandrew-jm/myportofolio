@@ -1,0 +1,19 @@
+.cursor-trail {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+.cursor-trail[hidden] {
+    display: none;
+}
+
+@media not all and (hover: hover) and (pointer: fine), (prefers-reduced-motion: reduce) {
+    .cursor-trail {
+        display: none;
+    }
+}

@@ -22,12 +22,15 @@
 
 html {
     background: var(--paper);
+    overflow-x: clip;
     color-scheme: dark;
     scroll-behavior: smooth;
     scroll-padding-top: 120px;
 }
 
 body {
+    position: relative;
+    isolation: isolate;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -37,6 +40,33 @@ body {
     background: var(--paper);
     line-height: 1.65;
     overflow-wrap: anywhere;
+}
+
+/* One continuous background behind every portfolio page. */
+body::before {
+    content: "";
+    position: fixed;
+    inset: -12vmax;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse at 18% 42%, #354eb04d, transparent 45%),
+        radial-gradient(ellipse at 82% 48%, #b3319d40, transparent 44%),
+        radial-gradient(ellipse at 50% 70%, #682aa56b, transparent 55%),
+        var(--paper);
+    transform-origin: center;
+    animation: purple-background-breathe 8s ease-in-out infinite;
+}
+
+@keyframes purple-background-breathe {
+    0%, 100% {
+        opacity: 0;
+        transform: scale(0.86);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.12);
+    }
 }
 
 body > main { flex: 1; }
@@ -502,6 +532,7 @@ button, a {
 }
 
 @media (forced-colors: active) {
+    body::before { display: none; }
     .nav-group, .social-link, .button { border: 1px solid ButtonText; }
     .glass-button { outline: 2px solid Highlight; outline-offset: -2px; }
     .glass-button__effect, .glass-button::after { display: none; }

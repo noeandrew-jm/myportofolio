@@ -30,8 +30,6 @@
     --card-gap: 26px;
     padding: 1rem 0 5rem;
     overflow: hidden;
-    background: radial-gradient(ellipse at 20% 55%, #40318f29, transparent 52%),
-        radial-gradient(ellipse at 85% 60%, #99136a1c, transparent 48%);
 }
 .showcase-hint { color: #b2a7cc; font-size: 0.8rem; text-align: center; padding: 0 1.25rem 1.75rem; }
 .showcase-hint span { padding: 0 0.6rem; color: #ce8acb; }

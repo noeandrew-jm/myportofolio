@@ -9,11 +9,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <meta name="theme-color" content="#0C0C0C">
     <title>{% block title %}{{ name }} - Portfolio{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=compact-nav-glass-20261003-1">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=site-purple-fade-20261004">
     <link rel="stylesheet" href="{% static 'css/project-interactivity.css' %}?v=project-states-20261002">
+    <link rel="stylesheet" href="{% static 'css/cursor-trail.css' %}?v=cursor-trail-20261004">
     <script src="{% static 'js/toast.js' %}?v=server-feedback-20261004" defer></script>
     <script src="{% static 'js/liquid-glass.js' %}?v=active-nav-toggle-glass-20261003-1" defer></script>
     <script src="{% static 'js/navigation.js' %}?v=mobile-nav-20260928-1" defer></script>
+    <script src="{% static 'js/cursor-trail.js' %}?v=cursor-trail-20261004" defer></script>
     {% block meta %} {% endblock meta %}
 </head>
 <body>
