@@ -62,6 +62,19 @@ class MainTest(TestCase):
         self.assertNotContains(response, self.experience.title)
         self.assertContains(response, f'href="{reverse("main:show_experience")}"')
 
+    def test_landing_intro_links_to_existing_about_page(self):
+        self.assertEqual(reverse("main:show_landing"), "/")
+        self.assertEqual(reverse("main:show_main"), "/about/")
+        response = self.client.get(reverse("main:show_landing"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "landing.html")
+        self.assertContains(response, "HI, I'm Noe Andrew!")
+        self.assertContains(response, "Check this out")
+        self.assertContains(response, f'href="{reverse("main:show_main")}"')
+        self.assertNotContains(response, '<nav')
+        self.assertNotContains(response, self.experience.title)
+
     def test_nonexistent_page_returns_404(self):
         response = self.client.get("/halaman-yang-tidak-ada/")
 
@@ -147,6 +160,8 @@ class MainTest(TestCase):
             ("show_experience", "show_experience"),
             ("show_achievements", "show_achievements"),
             ("show_projects", "show_projects"),
+            ("login", "login"),
+            ("register", "register"),
             ("create_project", "show_projects"),
         ):
             with self.subTest(route=route):
@@ -168,10 +183,6 @@ class MainTest(TestCase):
                     classes = link.get("class", "").split()
                     link_path = urlsplit(link["href"]).path
                     is_active = link_path == reverse(f"main:{active_route}")
-                    is_auth_link = link_path in (
-                        reverse("main:login"),
-                        reverse("main:register"),
-                    )
                     self.assertIn("nav-link", classes)
                     if is_active:
                         self.assertIn("active", classes)
@@ -180,24 +191,28 @@ class MainTest(TestCase):
                     else:
                         self.assertNotIn("active", classes)
                         self.assertNotIn("aria-current", link)
-                    if is_active or is_auth_link:
-                        self.assertIn("glass-button", classes)
-                    else:
                         self.assertNotIn("glass-button", classes)
                 expected_glass_links = [
                     ("a", link)
                     for link in links
                     if urlsplit(link["href"]).path == reverse(f"main:{active_route}")
-                    or urlsplit(link["href"]).path in (
-                        reverse("main:login"),
-                        reverse("main:register"),
-                    )
                 ]
                 self.assertEqual(document.navigation_glass_elements, expected_glass_links)
+                glass_toggles = [
+                    (tag, attrs)
+                    for tag, attrs in document.glass_elements
+                    if "nav-toggle" in attrs.get("class", "").split()
+                ]
+                self.assertEqual(len(glass_toggles), 1)
+                toggle_tag, toggle_attrs = glass_toggles[0]
+                self.assertEqual(toggle_tag, "button")
+                self.assertEqual(toggle_attrs.get("aria-controls"), "main-navigation")
+                self.assertEqual(toggle_attrs.get("aria-expanded"), "false")
+                self.assertTrue(toggle_attrs.get("aria-label"))
                 self.assertEqual(document.asset_paths.count("/static/js/liquid-glass.js"), 1)
                 self.assertEqual(
                     len(document.glass_elements),
-                    len(expected_glass_links) + (3 if route == "show_main" else 0),
+                    len(expected_glass_links) + len(glass_toggles) + (3 if route == "show_main" else 0),
                 )
                 label_count = len(expected_destinations) + (3 if route == "show_main" else 0)
                 self.assertContains(response, 'class="glass-button__label"', count=label_count)

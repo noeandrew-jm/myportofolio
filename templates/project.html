@@ -3,12 +3,11 @@
 {% block title %}Projects - {{ name }}{% endblock title %}
 {% block meta %}
 {{ block.super }}
-<script src="{% static 'js/projects.js' %}?v=search-debounce-20261002" defer></script>
+<script src="{% static 'js/projects.js' %}?v=modal-ajax-20261002" defer></script>
 {% endblock meta %}
 {% block content %}
 <main id="projects-app"
       data-projects-endpoint="{% url 'main:get_projects_json' %}"
-      data-create-endpoint="{% url 'main:create_project_ajax' %}"
       data-detail-url="{% url 'main:project_detail' '00000000-0000-0000-0000-000000000000' %}"
       data-edit-url="{% url 'main:update_project' '00000000-0000-0000-0000-000000000000' %}"
       data-delete-url="{% url 'main:delete_project' '00000000-0000-0000-0000-000000000000' %}"
@@ -21,7 +20,7 @@
                 <p class="hero-kicker">Karya yang saya bangun</p>
                 <div class="project-header">
                     <h1>Projects</h1>
-                    {% if user.is_superuser %} 
+                    {% if can_create_projects %}
                     <button type="button" class="button project-add-button" popovertarget="add-project-modal">
                         <span aria-hidden="true">+</span> Tambah Proyek
                     </button>
@@ -105,7 +104,7 @@
         </div>
     </article>
 </template>
-{% if user.is_superuser %}
+{% if can_create_projects %}
     {% include "components/project_form_modal.html" %}
 {% endif %}
 {% endblock content %}

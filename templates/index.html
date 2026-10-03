@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block meta %}
-<link rel="stylesheet" href="{% static 'css/about.css' %}?v=profile-contacts-20260924">
+<link rel="stylesheet" href="{% static 'css/about.css' %}?v=profile-details-20261003">
 <script src="{% static 'js/about.js' %}?v=galaxy-shared-theme-20260921-2" defer></script>
 {% endblock meta %}
 
@@ -71,12 +71,12 @@
                 <div class="profile-details">
                     <dl class="meta-list">
                         <div class="meta-row">
-                            <dt>NPM</dt>
+                            <dt class="tw-sr-only">NPM</dt>
                             <dd class="profile-student-number">{{ npm }}</dd>
                         </div>
 
                         <div class="meta-row">
-                            <dt>Program</dt>
+                            <dt class="tw-sr-only">Program</dt>
                             <dd class="profile-study">{{ study_program }}</dd>
                         </div>
 

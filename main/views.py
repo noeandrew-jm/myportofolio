@@ -14,7 +14,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from main.forms import ProjectForm
 from main.models import Achievement, Experience, Project
-from main.permissions import can_edit_projects
+from main.permissions import can_create_projects, can_edit_projects
 from main.project_queries import PUBLIC_PROJECT_FIELDS, public_projects, with_star_status
 from main.project_urls import safe_project_url
 
@@ -27,6 +27,10 @@ def safe_next_url(request, fallback):
     ):
         return target
     return fallback
+
+
+def show_landing(request):
+    return render(request, "landing.html", {"name": "Noe Andrew"})
 
 
 def show_main(request):
@@ -104,6 +108,7 @@ def show_projects(request):
         "active_page": "projects",
         "form": ProjectForm(),
         "title_query": request.GET.get("title", "").strip(),
+        "can_create_projects": can_create_projects(request.user),
         "can_edit_projects": can_edit_projects(request.user),
     }
     return render(request, "project.html", context)
@@ -127,7 +132,7 @@ def project_detail(request, project_id):
 @login_required(login_url="main:login")
 @require_http_methods(["GET", "POST"])
 def create_project(request):
-    if not request.user.is_superuser:
+    if not can_create_projects(request.user):
         raise PermissionDenied
     form = ProjectForm(request.POST if request.method == "POST" else None)
 
@@ -148,7 +153,7 @@ def create_project(request):
 
 @require_POST
 def create_project_ajax(request):
-    if not request.user.is_superuser:
+    if not can_create_projects(request.user):
         return JsonResponse(
             {"message": "Hanya pemilik portofolio yang dapat menambahkan proyek."},
             status=403,

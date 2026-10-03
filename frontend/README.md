@@ -31,7 +31,15 @@ profile uses the same font and purple, pink, blue and black palette.
 
 ## Homepage hero and profile
 
-Only `templates/index.html` loads the About bundle and stylesheet. Django renders
+The root URL uses `templates/landing.html` for a full-screen welcome. Its three
+text groups rise into place from left to right, followed by the Check this out
+link to `/about/`. `static/css/landing.css` supplies the entrance animations and
+uses the existing wordmark font and Contact Me button styles. Reduced motion
+shows the complete greeting and button immediately. The welcome works without
+JavaScript. The existing portfolio remains at `/about/` under `main:show_main`.
+
+Only `templates/index.html` loads the About JavaScript bundle. The welcome also
+shares the About stylesheet for its text gradient and button. Django renders
 a complete static hero, including the real `name`, `bio`, corner artwork and the
 Contact Me link. Escaped data attributes supply the name, bio and static asset
 URLs to React.
@@ -74,8 +82,10 @@ the archive's demo, videos and install scripts are not used.
 share one `.nav-group`, and only the link with `aria-current="page"` receives the
 `.glass-button` class. React renders only its decorative `aria-hidden` layer;
 native hrefs, keyboard navigation, labels and link context menus remain intact.
-CSS supplies the active effect without JavaScript, focus rings, touch states,
-and reduced-motion support. The three `.profile-contact-link` anchors explicitly
+The mobile three-dot toggle also uses the glass layer, and its compact menu
+keeps 44px touch targets. CSS supplies the active effect without JavaScript,
+focus rings, touch states, and reduced-motion support. The three
+`.profile-contact-link` anchors explicitly
 opt into the same effect; inactive navigation links remain plain.
 
 ## Moving cards

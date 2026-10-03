@@ -3,6 +3,10 @@
 EDITOR_GROUP = "Editor"
 
 
+def can_create_projects(user):
+    return user.is_authenticated and user.is_superuser
+
+
 def can_edit_projects(user):
     return user.is_authenticated and (
         user.is_superuser or user.groups.filter(name=EDITOR_GROUP).exists()

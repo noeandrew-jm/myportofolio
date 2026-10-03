@@ -1,0 +1,97 @@
+.landing-page {
+    min-height: 100svh;
+    overflow-wrap: normal;
+}
+
+.landing-intro {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    min-height: 100svh;
+    padding: 3rem 1.5rem;
+    background:
+        radial-gradient(ellipse at 50% 75%, #7621b00a, transparent 55%),
+        var(--paper);
+}
+
+.landing-content {
+    width: 100%;
+    max-width: 1440px;
+    text-align: center;
+}
+
+.landing-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    column-gap: 0.24em;
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: clamp(2.75rem, 9.2vw, 9rem);
+    font-weight: 800;
+    line-height: 1.12;
+    letter-spacing: -0.045em;
+}
+
+.landing-word {
+    display: inline-flex;
+    overflow: hidden;
+    padding: 0.1em 0.035em 0.18em;
+    margin: -0.1em -0.035em -0.18em;
+}
+
+.landing-word__text {
+    display: block;
+    white-space: nowrap;
+    animation: welcome-word 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.15s;
+}
+
+.landing-word:nth-child(2) .landing-word__text { animation-delay: 0.5s; }
+.landing-word:nth-child(3) .landing-word__text { animation-delay: 0.85s; }
+
+.landing-action {
+    margin-top: clamp(2.5rem, 6vw, 5rem);
+    animation: welcome-action 0.75s cubic-bezier(0.16, 1, 0.3, 1) 2.05s both;
+}
+
+.landing-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 1rem 3rem;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+@keyframes welcome-word {
+    from { opacity: 0; transform: translateY(115%); filter: blur(6px); }
+    to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes welcome-action {
+    from { opacity: 0; visibility: hidden; transform: translateY(1.25rem); }
+    to { opacity: 1; visibility: visible; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+    .landing-heading {
+        font-size: clamp(2.5rem, 12vw, 4.75rem);
+        row-gap: 0.12em;
+    }
+    .landing-word:last-child { flex-basis: 100%; justify-content: center; }
+    .landing-cta { padding: 0.85rem 2.25rem; font-size: 0.875rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .landing-word__text, .landing-action { animation: none; }
+}
+
+@media (forced-colors: active) {
+    .landing-intro { background: Canvas; }
+}

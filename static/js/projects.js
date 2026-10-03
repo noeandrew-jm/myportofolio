@@ -218,6 +218,13 @@
         return messages.join(' ');
     }
 
+    function showSubmissionError(message) {
+        const container = document.getElementById('project-form-errors');
+        container.textContent = message;
+        container.hidden = false;
+        window.showToast('Gagal menambahkan proyek', message, 'error', 5000);
+    }
+
     async function addProject(event) {
         event.preventDefault();
         if (submitting) return;
@@ -233,7 +240,7 @@
         submitButton.textContent = 'Menyimpan...';
         projectForm.setAttribute('aria-busy', 'true');
         try {
-            const response = await fetch(app.dataset.createEndpoint, {
+            const response = await fetch(projectForm.action, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
@@ -249,7 +256,7 @@
                 // An HTML login page or intermediary response may still use 200.
                 // Only the create endpoint's confirmed result can clear input.
                 if (response.status !== 201 || !uuidPattern.test(result.pk)) {
-                    window.showToast('Gagal menambahkan proyek', 'Respons server tidak valid. Periksa daftar proyek sebelum mencoba kembali.', 'error', 5000);
+                    showSubmissionError('Respons server tidak valid. Periksa daftar proyek sebelum mencoba kembali.');
                     return;
                 }
                 projectForm.reset();
@@ -258,10 +265,10 @@
                 await searchProjects();
             } else {
                 const message = result.errors ? showFormErrors(result.errors) : result.message;
-                window.showToast('Gagal menambahkan proyek', message || `Terjadi kesalahan (status ${response.status}). Silakan coba lagi.`, 'error', 5000);
+                showSubmissionError(message || `Terjadi kesalahan (status ${response.status}). Silakan coba lagi.`);
             }
         } catch {
-            window.showToast('Gagal menambahkan proyek', 'Tidak dapat terhubung ke server. Periksa daftar proyek sebelum mencoba kembali.', 'error', 5000);
+            showSubmissionError('Tidak dapat terhubung ke server. Periksa daftar proyek sebelum mencoba kembali.');
         } finally {
             submitting = false;
             editableFields.forEach(field => { field.disabled = false; });

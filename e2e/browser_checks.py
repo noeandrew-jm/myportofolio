@@ -350,6 +350,11 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                     window.projectReads.push(parsed.searchParams.get('title'));
                 }
                 if (parsed.pathname === arguments[1] && options?.method === 'POST') {
+                    if (window.postFailure === 'forbidden') {
+                        return Promise.resolve(new Response(JSON.stringify({
+                            message: 'Hanya pemilik portofolio yang dapat menambahkan proyek.',
+                        }), {status: 403, headers: {'Content-Type': 'application/json'}}));
+                    }
                     if (window.postFailure === 'network') {
                         return Promise.reject(new TypeError('Simulated disconnected network'));
                     }
@@ -365,7 +370,12 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         """, reverse("main:get_projects_json"), reverse("main:create_project_ajax"))
         self.click(".project-add-button")
         self.fill_project("Beta outside active filter")
+        self.assertEqual(
+            self.driver.find_element(By.ID, "project-form").get_attribute("action"),
+            self.live_server_url + reverse("main:create_project_ajax"),
+        )
         for mode, message in (
+            ("forbidden", "Hanya pemilik portofolio"),
             ("network", "Tidak dapat terhubung"),
             ("html_error", "503"),
             ("html_success", "Respons server tidak valid"),
@@ -374,6 +384,8 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                 self.driver.execute_script("window.postFailure = arguments[0];", mode)
                 self.submit_project()
                 self.wait.until(EC.text_to_be_present_in_element((By.ID, "toast-message"), message))
+                self.wait.until(EC.visibility_of_element_located((By.ID, "project-form-errors")))
+                self.assertIn(message, self.driver.find_element(By.ID, "project-form-errors").text)
                 self.assertIn("Gagal", self.driver.find_element(By.ID, "toast-title").text)
                 self.assertTrue(self.driver.find_element(By.ID, "project-form").is_displayed())
                 self.assertEqual(self.driver.find_element(By.ID, "id_title").get_attribute("value"), "Beta outside active filter")
@@ -430,6 +442,7 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         """)
         self.submit_project()
         self.wait.until(EC.text_to_be_present_in_element((By.ID, "toast-message"), "403"))
+        self.assertIn("403", self.driver.find_element(By.ID, "project-form-errors").text)
         self.assertEqual(Project.objects.count(), 0)
         self.assertTrue(self.driver.find_element(By.CSS_SELECTOR, '#project-form button[type="submit"]').is_enabled())
         self.driver.execute_script("document.querySelector('#project-form [name=csrfmiddlewaretoken]').value = window.validProjectCsrf;")

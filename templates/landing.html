@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0C0C0C">
+    <meta name="description" content="Meet Noe Andrew. Explore the work, ideas, and person behind the portfolio.">
+    <title>Hi, I'm {{ name }}!</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=compact-nav-glass-20261003-1">
+    <link rel="stylesheet" href="{% static 'css/about.css' %}?v=profile-details-20261003">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}?v=welcome-20261003">
+</head>
+<body class="landing-page">
+    <main class="landing-intro" aria-labelledby="welcome-heading">
+        <div class="landing-content">
+            <h1 class="landing-heading" id="welcome-heading" aria-label="HI, I'm {{ name }}!">
+                <span class="landing-word" aria-hidden="true"><span class="landing-word__text hero-heading">HI,</span></span>
+                <span class="landing-word" aria-hidden="true"><span class="landing-word__text hero-heading">I'm</span></span>
+                <span class="landing-word" aria-hidden="true"><span class="landing-word__text hero-heading">{{ name }}!</span></span>
+            </h1>
+            <div class="landing-action">
+                <a class="about-contact-button landing-cta" href="{% url 'main:show_main' %}">Check this out</a>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

@@ -37,6 +37,23 @@ class CreateProjectAjaxTests(TestCase):
     def setUp(self):
         self.url = reverse("main:create_project_ajax")
 
+    def test_modal_uses_ajax_endpoint_and_is_only_available_to_superusers(self):
+        for user in (None, self.user, self.staff, self.editor, self.admin):
+            with self.subTest(user=user):
+                if user is None:
+                    self.client.logout()
+                else:
+                    self.client.force_login(user)
+                response = self.client.get(reverse("main:show_projects"))
+                self.assertEqual(response.context["can_create_projects"], user == self.admin)
+                if user == self.admin:
+                    self.assertContains(response, 'popovertarget="add-project-modal"')
+                    self.assertContains(response, f'id="project-form" method="post" action="{self.url}"')
+                    self.assertTemplateUsed(response, "components/project_form_modal.html")
+                else:
+                    self.assertNotContains(response, 'id="project-form"')
+                    self.assertNotContains(response, 'popovertarget="add-project-modal"')
+
     def test_only_superusers_can_create_and_denials_are_json_without_redirects(self):
         count = Project.objects.count()
         for user in (None, self.user, self.staff, self.editor):
@@ -122,6 +139,16 @@ class CreateProjectAjaxTests(TestCase):
         response = client.post(self.url, project_payload(), HTTP_X_CSRFTOKEN=token)
         self.assertEqual(response.status_code, 403)
         self.assertIn("message", response.json())
+
+    def test_csrf_token_from_modal_field_allows_creation_without_header(self):
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.admin)
+        page = client.get(reverse("main:show_projects"))
+        token = str(page.context["csrf_token"])
+        count = Project.objects.count()
+        response = client.post(self.url, project_payload(csrfmiddlewaretoken=token))
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Project.objects.count(), count + 1)
 
 
 class ProjectSanitizationTests(TestCase):

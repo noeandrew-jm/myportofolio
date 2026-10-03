@@ -95,9 +95,9 @@ function GlassButtonEffect({ button }: { button: HTMLElement }) {
   );
 }
 
-// Auth links keep their glass surface on every page; other navigation links
-// and profile contacts use the effect only when explicitly marked.
-document.querySelectorAll<HTMLElement>('.nav-group .glass-button[aria-current="page"], .nav-group .nav-auth-link.glass-button, .profile-contact-link.glass-button').forEach((button, index) => {
+// Navigation links get glass only on their current page. The mobile menu toggle
+// and profile contact buttons keep their explicitly marked decorative surface.
+document.querySelectorAll<HTMLElement>('.nav-group .glass-button[aria-current="page"], .nav-toggle.glass-button, .profile-contact-link.glass-button').forEach((button, index) => {
   const effect = document.createElement("div");
   effect.className = "glass-button__effect";
   effect.setAttribute("aria-hidden", "true");

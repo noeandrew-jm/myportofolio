@@ -8,6 +8,7 @@ from main.views import (
     get_projects_xml,
     show_achievements,
     show_experience,
+    show_landing,
     show_main,
     show_projects,
     update_project,
@@ -21,7 +22,8 @@ from main.views import (
 app_name = "main"
 
 urlpatterns = [
-    path("", show_main, name="show_main"),
+    path("", show_landing, name="show_landing"),
+    path("about/", show_main, name="show_main"),
     path("achievements/", show_achievements, name="show_achievements"),
     path("experience/", show_experience, name="show_experience"),
     path("projects/", show_projects, name="show_projects"),

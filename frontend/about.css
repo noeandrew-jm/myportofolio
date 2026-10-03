@@ -205,8 +205,13 @@
 }
 .profile-text-link span { font-size: 1.25rem; }
 .profile-details { grid-column: 3; padding-left: 1.25rem; }
-.profile-study {
-  margin-bottom: 0.75rem;
+.profile-details .meta-list {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0 0 1.25rem;
+}
+.profile-details .profile-study {
+  margin: 0;
   color: var(--accent-dark);
   font-size: clamp(1.25rem, 2vw, 1.75rem);
   font-weight: 500;
@@ -220,8 +225,8 @@
   letter-spacing: -0.025em;
   line-height: 1.2;
 }
-.profile-student-number {
-  margin-top: 1.25rem;
+.profile-details .profile-student-number {
+  margin: 0;
   color: var(--text-muted);
   font-size: clamp(1.2rem, 1.8vw, 1.5rem);
   font-variant-numeric: tabular-nums;
@@ -311,8 +316,8 @@
   .profile-overline { font-size: 0.85rem; letter-spacing: 0.08em; }
   .profile-summary { font-size: 1.125rem; }
   .profile-text-link { font-size: 0.9rem; gap: 0.65rem; }
-  .profile-study { font-size: 1.25rem; }
-  .profile-student-number { font-size: 1.2rem; }
+  .profile-details .profile-study { font-size: 1.25rem; }
+  .profile-details .profile-student-number { font-size: 1.2rem; }
 }
 
 @media (max-width: 480px) {

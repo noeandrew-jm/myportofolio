@@ -60,7 +60,7 @@ button, a {
     padding: 0 2.5rem;
 }
 
-/* One solid navigation tray. Only the current page has a glass surface. */
+/* One solid navigation tray. Glass marks the current page and mobile toggle. */
 .site-header {
     position: sticky;
     top: 0;
@@ -88,18 +88,24 @@ button, a {
 }
 .brand span { color: #bc6df0; }
 .nav-toggle {
+    position: relative;
     display: none;
     width: 44px;
     height: 44px;
     place-content: center;
-    gap: 4px;
-    border: 1px solid #3a3a40;
-    border-radius: 12px;
+    border: 1px solid #ffffff2b;
+    border-radius: 999px;
     color: #e6e9ef;
-    background: #171719;
     cursor: pointer;
 }
-.nav-toggle span {
+.nav-toggle__dots {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.nav-toggle__dots > span {
     width: 4px;
     height: 4px;
     border-radius: 50%;
@@ -454,10 +460,12 @@ button, a {
         top: calc(100% - 0.1rem);
         right: 1rem;
         display: grid;
-        width: min(18rem, calc(100vw - 2rem));
+        width: min(13rem, calc(100vw - 2rem));
         max-width: none;
-        gap: 2px;
-        padding: 8px;
+        max-height: calc(100dvh - 5.5rem);
+        overflow-y: auto;
+        gap: 0;
+        padding: 6px;
         border: 1px solid #34343a;
         border-radius: 12px;
         background: #171719;
@@ -469,8 +477,8 @@ button, a {
         transition: opacity 180ms ease, transform 180ms ease, visibility 180ms;
     }
     .nav-group.is-open { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0); }
-    .nav-link { justify-content: flex-start; width: 100%; padding: 0.75rem 0.9rem; font-size: 0.875rem; }
-    .nav-user { padding: 0.75rem 0.9rem; }
+    .nav-link { justify-content: flex-start; width: 100%; padding: 0.65rem 0.85rem; font-size: 0.875rem; }
+    .nav-user { padding: 0.65rem 0.85rem; }
     .page-intro { padding: 3rem 0 2rem; }
     .page-intro h1 { font-size: clamp(2rem, 8vw, 3rem); }
     .content-item { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
