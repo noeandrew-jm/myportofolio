@@ -12,7 +12,7 @@
             <div class="container">
                 <form method="post"
                       action="{% if is_update %}{% url 'main:update_project' project.id %}{% else %}{% url 'main:create_project' %}{% endif %}"
-                      class="project-form">
+                      class="project-form" data-toast-validation>
                     {% csrf_token %}
                     {% for error in form.non_field_errors %}
                         <p class="form-error" role="alert">{{ error }}</p>

@@ -29,8 +29,8 @@
         grid.setAttribute('aria-busy', String(state === 'loading'));
     }
 
-    // textContent protects text/attributes; URL schemes need a separate allowlist,
-    // including for legacy records that did not pass through today's ModelForm.
+    // Native DOM setters keep data as text. URLs also need a scheme allowlist
+    // for legacy records that did not pass through today's ModelForm.
     function safeWebUrl(value) {
         if (!value) return null;
         try {
@@ -39,6 +39,10 @@
         } catch {
             return null;
         }
+    }
+
+    function serverMessage(payload) {
+        return payload && typeof payload.message === 'string' ? payload.message : '';
     }
 
     function buildProjectCardElement(item) {
@@ -127,6 +131,7 @@
         projectsController = controller;
         updateSearchUrl(query);
         displayPageSection('loading');
+        let failureMessage = 'Gagal memuat data proyek. Periksa koneksi Anda, lalu coba lagi.';
         try {
             const url = new URL(app.dataset.projectsEndpoint, window.location.origin);
             if (query) url.searchParams.set('title', query);
@@ -136,7 +141,13 @@
                 cache: 'no-store',
                 signal: controller.signal,
             });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                failureMessage = serverMessage(payload)
+                    || `Gagal memuat data proyek (status ${response.status}). Silakan coba lagi.`;
+                throw new Error('Project request failed');
+            }
+            failureMessage = 'Data proyek dari server tidak valid. Silakan coba lagi.';
             const projects = await response.json();
             if (controller.signal.aborted || projectsController !== controller) return;
             if (!Array.isArray(projects)) throw new Error('Invalid project list');
@@ -151,9 +162,11 @@
             }
             displayPageSection(projects.length ? 'grid' : 'empty');
             grid.dispatchEvent(new Event('showcase:refresh'));
-        } catch (error) {
+        } catch {
             if (controller.signal.aborted || projectsController !== controller) return;
+            document.getElementById('project-load-error').textContent = failureMessage;
             displayPageSection('error');
+            window.showToast('Gagal memuat proyek', failureMessage, 'error', 5000);
         }
     }
 
@@ -202,12 +215,17 @@
     }
 
     function showFormErrors(errors) {
+        if (!errors || typeof errors !== 'object' || Array.isArray(errors)) return '';
         const messages = [];
-        for (const [name, fieldErrors] of Object.entries(errors || {})) {
-            const text = fieldErrors.map(error => String(error.message)).join(' ');
+        for (const [name, fieldErrors] of Object.entries(errors)) {
+            const entries = Array.isArray(fieldErrors) ? fieldErrors : [fieldErrors];
+            const text = entries.map(error => typeof error === 'string' ? error : serverMessage(error))
+                .filter(Boolean).join(' ');
+            if (!text) continue;
             messages.push(text);
-            const field = projectForm.elements.namedItem(name);
-            const container = field ? document.getElementById(`${field.id}_error`) : document.getElementById('project-form-errors');
+            const control = projectForm.elements.namedItem(name);
+            const field = control instanceof HTMLElement && control.type !== 'hidden' ? control : null;
+            const container = field ? document.getElementById(`${field.id}_error`) : null;
             if (container) {
                 container.textContent = text;
                 container.hidden = false;
@@ -264,7 +282,7 @@
                 window.showToast('Berhasil', 'Proyek baru berhasil ditambahkan!', 'success');
                 await searchProjects();
             } else {
-                const message = result.errors ? showFormErrors(result.errors) : result.message;
+                const message = showFormErrors(result.errors) || serverMessage(result);
                 showSubmissionError(message || `Terjadi kesalahan (status ${response.status}). Silakan coba lagi.`);
             }
         } catch {

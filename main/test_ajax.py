@@ -161,6 +161,8 @@ class ProjectSanitizationTests(TestCase):
             title="  <b>Portfolio</b> website  ",
             description="  A <em>Django</em> application.  ",
             tech_stack="  <span>Python</span>, Django  ",
+            project_url="https://example.com/<b>portfolio</b>?source=project&mode=preview",
+            project_image_url="https://example.com/<i>preview</i>.png",
         ))
         self.assertTrue(form.is_valid(), form.errors)
         project = form.save()
@@ -168,6 +170,8 @@ class ProjectSanitizationTests(TestCase):
         self.assertEqual(project.title, "Portfolio website")
         self.assertEqual(project.description, "A Django application.")
         self.assertEqual(project.tech_stack, "Python, Django")
+        self.assertEqual(project.project_url, "https://example.com/portfolio?source=project&mode=preview")
+        self.assertEqual(project.project_image_url, "https://example.com/preview.png")
 
     def test_tags_cannot_bypass_required_text_fields(self):
         for field in ("title", "description", "tech_stack"):
@@ -205,6 +209,60 @@ class ProjectSanitizationTests(TestCase):
             response.json()["errors"]["title"][0]["message"],
             "Nama proyek tidak boleh hanya berisi tag HTML.",
         )
+
+    def test_invalid_sanitized_text_and_url_inputs_never_persist_on_create_or_update(self):
+        self.client.force_login(self.admin)
+        original = project_payload(title="Existing sanitized project")
+        project = Project.objects.create(**original)
+        count = Project.objects.count()
+        invalid_inputs = [
+            (field, '<img src="x" onerror="alert(1)">')
+            for field in ("title", "description", "tech_stack")
+        ] + [
+            (field, value)
+            for field in ("project_url", "project_image_url")
+            for value in (
+                "javascript:alert(1)",
+                "data:text/html,<script>alert(1)</script>",
+                "ftp://example.com/project",
+                "ftps://example.com/project",
+            )
+        ]
+        routes = (
+            (reverse("main:create_project_ajax"), 400),
+            (reverse("main:create_project"), 200),
+            (reverse("main:update_project", args=[project.pk]), 200),
+        )
+        for url, expected_status in routes:
+            for field, value in invalid_inputs:
+                with self.subTest(url=url, field=field, value=value):
+                    response = self.client.post(url, project_payload(**{field: value}))
+                    self.assertEqual(response.status_code, expected_status)
+                    errors = (
+                        response.json()["errors"]
+                        if expected_status == 400 else response.context["form"].errors
+                    )
+                    self.assertIn(field, errors)
+                    self.assertEqual(Project.objects.count(), count)
+                    project.refresh_from_db()
+                    for saved_field, saved_value in original.items():
+                        self.assertEqual(getattr(project, saved_field), saved_value)
+
+    def test_http_and_https_urls_survive_validation_and_sanitized_persistence(self):
+        for scheme in ("http", "https"):
+            with self.subTest(scheme=scheme):
+                url = f"{scheme}://example.com/project?source=portfolio&mode=demo"
+                form = ProjectForm(project_payload(
+                    title="<b>Web project</b>",
+                    project_url=url,
+                    project_image_url=url,
+                ))
+                self.assertTrue(form.is_valid(), form.errors)
+                project = form.save()
+                project.refresh_from_db()
+                self.assertEqual(project.title, "Web project")
+                self.assertEqual(project.project_url, url)
+                self.assertEqual(project.project_image_url, url)
 
 
 class ProjectAjaxDataTests(TestCase):

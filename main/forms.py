@@ -3,6 +3,7 @@ from django.forms import ModelForm, TextInput, Textarea, URLInput
 from django.utils.html import strip_tags
 
 from main.models import Project
+from main.project_urls import validate_web_url
 
 
 class ProjectForm(ModelForm):
@@ -21,6 +22,19 @@ class ProjectForm(ModelForm):
         description = strip_tags(self.cleaned_data["description"]).strip()
         self.fields["description"].validate(description)
         return description
+
+    def clean_project_url(self):
+        return self._clean_web_url(self.cleaned_data["project_url"])
+
+    def clean_project_image_url(self):
+        return self._clean_web_url(self.cleaned_data["project_image_url"])
+
+    def _clean_web_url(self, value):
+        # Keep URL query ampersands literal while the HTML parser removes tags.
+        value = strip_tags(value.replace("&", "&amp;")).replace("&amp;", "&").strip()
+        if value:
+            validate_web_url(value)
+        return value
 
     class Meta:
         model = Project

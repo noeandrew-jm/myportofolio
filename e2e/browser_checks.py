@@ -91,9 +91,14 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         element.click()
 
     def wait_for_titles(self, expected):
-        self.wait.until(lambda driver: [
-            element.text for element in driver.find_elements(By.CSS_SELECTOR, "#project-cards > .showcase-card .showcase-title")
-        ] == expected)
+        # AJAX replaces the nodes while the carousel moves cards outside its
+        # viewport. Snapshot their text in one browser task after the grid opens.
+        self.wait.until(lambda driver: driver.execute_script("""
+            const grid = document.getElementById('grid');
+            if (!grid || grid.hidden) return null;
+            return [...document.querySelectorAll('#project-cards > .showcase-card .showcase-title')]
+                .map(element => element.textContent.trim());
+        """) == expected)
 
     def search(self, query):
         self.driver.execute_script("""
@@ -104,6 +109,73 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
 
     def assert_same_document(self):
         self.assertTrue(self.driver.execute_script("return window.ajaxDocumentMarker === 'unchanged';"))
+
+    def test_public_reads_controls_and_toast_for_all_roles(self):
+        Project.objects.all().delete()
+        project = Project.objects.create(
+            title="Public project for every role",
+            description="Visitors and authenticated users can read this project.",
+            tech_stack="Django",
+        )
+        editor = get_user_model().objects.create_user(
+            username="role_editor", password=self.user_password,
+        )
+        editor.groups.add(Group.objects.get_or_create(name="Editor")[0])
+
+        for role, username, password, can_edit, can_manage in (
+            ("visitor", None, None, False, False),
+            ("member", "burhan_test", self.user_password, False, False),
+            ("editor", editor.username, self.user_password, True, False),
+            ("superuser", "admin_test", self.admin_password, True, True),
+        ):
+            with self.subTest(role=role):
+                self.driver.delete_all_cookies()
+                if username:
+                    self.open_page("login")
+                    self.submit_login(username, password)
+
+                self.open_page("show_landing")
+                self.assertEqual(
+                    self.driver.find_element(By.ID, "welcome-heading").get_attribute("aria-label"),
+                    "HI, I'm Noe Andrew!",
+                )
+                self.open_page("show_main")
+                self.wait.until(EC.visibility_of_element_located((By.ID, "about-app")))
+                self.assertTrue(self.driver.find_element(By.ID, "contact").is_displayed())
+
+                self.open_page("show_projects")
+                self.wait_for_titles([project.title])
+                self.assertFalse(self.driver.find_element(By.ID, "error").is_displayed())
+                result = self.driver.execute_async_script("""
+                    const done = arguments[arguments.length - 1];
+                    fetch(arguments[0], {credentials: 'same-origin'})
+                        .then(async response => done({status: response.status, rows: await response.json()}))
+                        .catch(error => done({error: String(error)}));
+                """, reverse("main:get_projects_json"))
+                self.assertEqual(result.get("status"), 200, result)
+                self.assertEqual([row["pk"] for row in result["rows"]], [str(project.pk)])
+                self.assertEqual(result["rows"][0]["fields"]["title"], project.title)
+                self.assertIs(result["rows"][0]["fields"]["is_starred"], False)
+                self.assertEqual(bool(self.driver.find_elements(By.ID, "add-project-modal")), can_manage)
+                self.assertEqual(bool(self.driver.find_elements(By.CLASS_NAME, "project-add-button")), can_manage)
+                self.assertEqual(bool(self.driver.find_elements(By.CSS_SELECTOR, "#project-cards [data-edit-project]")), can_edit)
+                self.assertEqual(bool(self.driver.find_elements(By.CSS_SELECTOR, "#project-cards [data-delete-project]")), can_manage)
+                self.assertEqual(bool(self.driver.find_elements(By.CSS_SELECTOR, "#project-cards .star-form")), bool(username))
+                self.assertEqual(bool(self.driver.find_elements(By.CSS_SELECTOR, "#project-cards a.button-star")), not bool(username))
+
+                title = '<img src=x onerror="window.roleToastXss=true">'
+                message = '<svg onload="window.roleToastXss=true">Role notification</svg>'
+                self.driver.execute_script("window.showToast(arguments[0], arguments[1], 'normal', 0);", title, message)
+                self.wait.until(lambda driver: driver.execute_script(
+                    "return getComputedStyle(document.getElementById('toast-component')).opacity === '1';"
+                ))
+                self.assertEqual(self.driver.find_element(By.ID, "toast-title").text, title)
+                self.assertEqual(self.driver.find_element(By.ID, "toast-message").text, message)
+                self.assertFalse(self.driver.find_elements(By.CSS_SELECTOR, "#toast-component img, #toast-component svg, #toast-component [onerror], #toast-component [onload]"))
+                self.assertIsNone(self.driver.execute_script("return window.roleToastXss;"))
+                self.click("#toast-component .toast-close")
+                self.wait.until(EC.invisibility_of_element_located((By.ID, "toast-component")))
+        print("[PASS] Visitor/member/editor/superuser dapat membaca halaman/JSON dengan kontrol dan toast aman", flush=True)
 
     def test_ajax_read_search_states_and_legacy_xss(self):
         Project.objects.all().delete()
@@ -116,10 +188,12 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         self.assertEqual(len(self.driver.find_elements(By.CSS_SELECTOR, "#project-cards a.button-star")), 2)
 
         # Track real AJAX calls and hold their response to inspect loading.
+        hostile_read_message = '<img src=x onerror="window.readToastXss=true">Server unavailable'
         self.driver.execute_script("""
             window.ajaxDocumentMarker = 'unchanged';
             window.originalFetch = window.fetch;
             window.projectReads = [];
+            window.hostileProjectReadMessage = arguments[1];
             window.fetch = (url, options) => {
                 const parsed = new URL(url, location.href);
                 if (parsed.pathname === arguments[0]) {
@@ -128,6 +202,10 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                     if (window.failProjectRead === 'network') return Promise.reject(new TypeError('Failed to fetch'));
                     if (window.failProjectRead === 'invalid-json') return Promise.resolve(new Response('invalid JSON'));
                     if (window.failProjectRead === 'invalid-list') return Promise.resolve(new Response('{}'));
+                    if (window.failProjectRead === 'server-message') return Promise.resolve(new Response(
+                        JSON.stringify({message: window.hostileProjectReadMessage}),
+                        {status: 503, headers: {'Content-Type': 'application/json'}},
+                    ));
                     if (window.holdProjectRead) return new Promise(resolve => {
                         window.releaseProjectRead = () => resolve(window.originalFetch(url, options));
                     });
@@ -140,7 +218,7 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                 field.value = query;
                 field.dispatchEvent(new Event('input', {bubbles: true}));
             }
-        """, reverse("main:get_projects_json"))
+        """, reverse("main:get_projects_json"), hostile_read_message)
         self.wait.until(lambda driver: driver.execute_script("return typeof window.releaseProjectRead === 'function';"))
         self.assertTrue(self.driver.find_element(By.ID, "loading").is_displayed())
         self.assertEqual(self.driver.find_element(By.ID, "grid").get_attribute("aria-busy"), "true")
@@ -157,11 +235,23 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
             self.driver.find_element(By.ID, "empty").text,
             'Tidak ada proyek yang cocok dengan pencarian "No result".',
         )
-        for failure in ("http", "network", "invalid-json", "invalid-list"):
+        for failure, message in (
+            ("http", "503"),
+            ("network", "Gagal memuat data proyek"),
+            ("invalid-json", "Data proyek dari server tidak valid"),
+            ("invalid-list", "Data proyek dari server tidak valid"),
+            ("server-message", hostile_read_message),
+        ):
             with self.subTest(failure=failure):
                 self.driver.execute_script("window.failProjectRead = arguments[0];", failure)
                 self.search("Beta")
                 self.wait.until(EC.visibility_of_element_located((By.ID, "error")))
+                self.wait.until(EC.text_to_be_present_in_element((By.ID, "toast-message"), message))
+                self.assertIn(message, self.driver.find_element(By.ID, "project-load-error").text)
+                self.assertEqual(self.driver.find_element(By.ID, "toast-title").text, "Gagal memuat proyek")
+                self.assertIn("toast-error", self.driver.find_element(By.ID, "toast-component").get_attribute("class"))
+                self.assertFalse(self.driver.find_elements(By.CSS_SELECTOR, "#toast-component img, #toast-component svg, #project-load-error img"))
+                self.assertIsNone(self.driver.execute_script("return window.readToastXss;"))
                 for state in ("loading", "empty", "grid"):
                     self.assertFalse(self.driver.find_element(By.ID, state).is_displayed())
                 self.driver.execute_script("window.failProjectRead = false;")
@@ -340,10 +430,12 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         self.search("Alpha")
         self.wait.until(EC.url_contains("?title=Alpha"))
         self.wait_for_titles([alpha.title])
+        hostile_validation_message = '<svg onload="window.validationToastXss=true">Invalid project</svg>'
         self.driver.execute_script("""
             window.ajaxDocumentMarker = 'unchanged';
             window.originalFetch = window.fetch;
             window.projectReads = [];
+            window.hostileValidationMessage = arguments[2];
             window.fetch = (url, options) => {
                 const parsed = new URL(url, location.href);
                 if (parsed.pathname === arguments[0]) {
@@ -358,6 +450,17 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                     if (window.postFailure === 'network') {
                         return Promise.reject(new TypeError('Simulated disconnected network'));
                     }
+                    if (window.postFailure === 'malformed-errors') {
+                        return Promise.resolve(new Response(JSON.stringify({
+                            errors: {title: [null, {message: {text: 'Invalid nested message'}}], unknown: null},
+                            message: {text: 'Invalid message object'},
+                        }), {status: 400, headers: {'Content-Type': 'application/json'}}));
+                    }
+                    if (window.postFailure === 'malicious-validation') {
+                        return Promise.resolve(new Response(JSON.stringify({
+                            errors: {title: [null, 'Plain validation error.', {message: window.hostileValidationMessage}]},
+                        }), {status: 400, headers: {'Content-Type': 'application/json'}}));
+                    }
                     if (window.postFailure === 'html_error' || window.postFailure === 'html_success') {
                         return Promise.resolve(new Response('<html><body>Sign in again</body></html>', {
                             status: window.postFailure === 'html_error' ? 503 : 200,
@@ -367,7 +470,7 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                 }
                 return window.originalFetch(url, options);
             };
-        """, reverse("main:get_projects_json"), reverse("main:create_project_ajax"))
+        """, reverse("main:get_projects_json"), reverse("main:create_project_ajax"), hostile_validation_message)
         self.click(".project-add-button")
         self.fill_project("Beta outside active filter")
         self.assertEqual(
@@ -379,6 +482,8 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
             ("network", "Tidak dapat terhubung"),
             ("html_error", "503"),
             ("html_success", "Respons server tidak valid"),
+            ("malformed-errors", "400"),
+            ("malicious-validation", hostile_validation_message),
         ):
             with self.subTest(response=mode):
                 self.driver.execute_script("window.postFailure = arguments[0];", mode)
@@ -387,6 +492,17 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                 self.wait.until(EC.visibility_of_element_located((By.ID, "project-form-errors")))
                 self.assertIn(message, self.driver.find_element(By.ID, "project-form-errors").text)
                 self.assertIn("Gagal", self.driver.find_element(By.ID, "toast-title").text)
+                self.assertFalse(self.driver.find_elements(By.CSS_SELECTOR, "#toast-component img, #toast-component svg, #project-form-errors svg, #id_title_error svg"))
+                self.assertIsNone(self.driver.execute_script("return window.validationToastXss;"))
+                if mode == "malformed-errors":
+                    self.assertNotIn("Tidak dapat terhubung", self.driver.find_element(By.ID, "toast-message").text)
+                    self.assertNotIn("[object Object]", self.driver.find_element(By.ID, "toast-message").text)
+                elif mode == "malicious-validation":
+                    self.assertIn("Plain validation error.", self.driver.find_element(By.ID, "toast-message").text)
+                    self.assertEqual(
+                        self.driver.find_element(By.ID, "id_title_error").text,
+                        "Plain validation error. " + hostile_validation_message,
+                    )
                 self.assertTrue(self.driver.find_element(By.ID, "project-form").is_displayed())
                 self.assertEqual(self.driver.find_element(By.ID, "id_title").get_attribute("value"), "Beta outside active filter")
                 self.assertEqual(self.driver.find_element(By.ID, "id_description").get_attribute("value"), "Data sementara untuk pengujian browser.")
@@ -516,10 +632,33 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         title = self.driver.find_element(By.NAME, "title")
         title.clear()
         title.send_keys("Edited through browser")
+        project_url = self.driver.find_element(By.NAME, "project_url")
+        project_url.send_keys("javascript:window.editorXss=true")
+        # Submit the real form after bypassing only native URL syntax checks,
+        # so Django's unsafe-scheme validation and full-page toast are exercised.
+        self.driver.execute_script("document.querySelector('.project-form').noValidate = true;")
+        self.submit_project()
+        self.wait.until(EC.text_to_be_present_in_element((By.ID, "toast-title"), "Gagal menyimpan proyek"))
+        self.assertTrue(self.driver.find_element(By.CLASS_NAME, "form-error").is_displayed())
+        self.assertIn(
+            self.driver.find_element(By.CLASS_NAME, "form-error").text,
+            self.driver.find_element(By.ID, "toast-message").text,
+        )
+        self.assertEqual(self.driver.find_element(By.NAME, "title").get_attribute("value"), "Edited through browser")
+        project.refresh_from_db()
+        self.assertEqual(project.title, "Editor browser project")
+        self.assertEqual(project.project_url, "")
+        self.assertIsNone(self.driver.execute_script("return window.editorXss;"))
+        project_url = self.driver.find_element(By.NAME, "project_url")
+        project_url.clear()
+        project_url.send_keys("https://example.com/editor-project")
         self.submit_project()
         self.wait_for_titles(["Edited through browser"])
+        self.wait.until(EC.text_to_be_present_in_element((By.ID, "toast-title"), "Berhasil"))
+        self.assertIn("diperbarui", self.driver.find_element(By.ID, "toast-message").text)
         project.refresh_from_db()
         self.assertEqual(project.title, "Edited through browser")
+        self.assertEqual(project.project_url, "https://example.com/editor-project")
         self.assertEqual(Project.objects.count(), 1)
         print("[PASS] Kartu AJAX mempertahankan izin dan navigasi Editor", flush=True)
 

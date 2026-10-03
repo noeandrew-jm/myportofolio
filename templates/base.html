@@ -11,7 +11,7 @@
     <title>{% block title %}{{ name }} - Portfolio{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}?v=compact-nav-glass-20261003-1">
     <link rel="stylesheet" href="{% static 'css/project-interactivity.css' %}?v=project-states-20261002">
-    <script src="{% static 'js/toast.js' %}?v=tutorial05-20260929-1" defer></script>
+    <script src="{% static 'js/toast.js' %}?v=server-feedback-20261004" defer></script>
     <script src="{% static 'js/liquid-glass.js' %}?v=active-nav-toggle-glass-20261003-1" defer></script>
     <script src="{% static 'js/navigation.js' %}?v=mobile-nav-20260928-1" defer></script>
     {% block meta %} {% endblock meta %}
@@ -73,7 +73,7 @@
     {% if messages %}
         <div class="container site-messages" role="status" aria-live="polite">
             {% for message in messages %}
-                <p class="site-message{% if message.tags %} site-message--{{ message.tags }}{% endif %}">{{ message }}</p>
+                <p class="site-message{% if message.tags %} site-message--{{ message.tags }}{% endif %}" data-toast-message data-toast-type="{{ message.tags }}">{{ message }}</p>
             {% endfor %}
         </div>
     {% endif %}

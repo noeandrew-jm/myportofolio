@@ -3,7 +3,7 @@
 {% block title %}Projects - {{ name }}{% endblock title %}
 {% block meta %}
 {{ block.super }}
-<script src="{% static 'js/projects.js' %}?v=modal-ajax-20261002" defer></script>
+<script src="{% static 'js/projects.js' %}?v=toast-errors-20261004" defer></script>
 {% endblock meta %}
 {% block content %}
 <main id="projects-app"
@@ -43,7 +43,7 @@
             <p>Memuat proyek...</p>
         </div>
         <div id="error" class="projects-feedback hide" role="alert" aria-atomic="true" hidden>
-            <p>Gagal memuat data proyek. Periksa koneksi Anda, lalu coba lagi.</p>
+            <p id="project-load-error">Gagal memuat data proyek. Periksa koneksi Anda, lalu coba lagi.</p>
             <button id="retry-projects" type="button" class="button button-secondary">Coba Lagi</button>
         </div>
         <div id="empty" class="projects-feedback hide" role="status" aria-live="polite" aria-atomic="true" hidden>

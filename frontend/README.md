@@ -112,6 +112,14 @@ shared notifications; their styles and the modal styles live in
 Django and do not require the React build. After a list update,
 `showcase:refresh` rebuilds the decorative carousel copies.
 
+Toasts report successful creation, failed requests, and server validation errors.
+Full-page project forms also display their errors and Django success messages as
+toasts. Dynamic project content, error text, and notifications use `textContent`
+or native DOM attribute setters. `ProjectForm.clean_<field>` strips HTML tags
+from text inputs, revalidates required fields, and accepts only HTTP/HTTPS project
+and image URLs. Public project reads remain available to anonymous visitors;
+management controls follow the existing user roles.
+
 Cards show their title first, followed by the image, description, and supporting
 details/actions. Landscape images keep their proportions at the card width;
 taller images use a square crop. Images and empty-image placeholders use subtly
