@@ -29,6 +29,17 @@ or deploying. `node_modules/` is ignored. Libraries run from the local bundles;
 Kanit is requested from Google Fonts with a system sans-serif fallback. The whole
 profile uses the same font and purple, pink, blue and black palette.
 
+## Shared page background
+
+`static/css/style.css` supplies the purple, blue and pink radial gradient on
+every portfolio page, including the standalone welcome. A fixed decorative
+layer behind the content expands and contracts in a continuous 8-second cycle,
+fading from fully transparent to visible and back. Stronger gradient colors make
+the change easier to see. Only the background scales and fades, so layouts and
+controls remain stable. The effect
+uses CSS without JavaScript, stays still with reduced motion, and is hidden in
+forced-color mode. Page sections remain transparent over this shared background.
+
 ## Homepage hero and profile
 
 The root URL uses `templates/landing.html` for a full-screen welcome. Its three
@@ -69,6 +80,24 @@ The supplied `static/image/noe.png` has an opaque white background. Its transpar
 derivative is saved separately at `static/image/noe-cutout.png`; the source file
 is unchanged. The built-in imagegen edit tool produced the derivative. See
 [`docs/portrait-asset.md`](../docs/portrait-asset.md) for the edit prompt.
+1w
+## Cursor trail
+
+The cursor follower adapts the supplied
+[CursorDotTrail component](https://framer.com/m/CursorDotTrail-ZDqFAE.js@iLyzK205nNCuHNDP5Nsc)
+to native canvas in `static/js/cursor-trail.js` and `static/css/cursor-trail.css`;
+it does not load the Framer runtime. Both the landing page and the shared base
+template load these assets directly, without a frontend build. A 12px white dot
+follows the mouse with a 200 ms trail and becomes a 40px ring over controls.
+The canvas ignores clicks, is hidden from accessibility APIs, and leaves the
+native cursor in place. The effect runs only with a mouse on devices supporting
+hover and a fine pointer, and stays disabled when reduced motion is requested.
+
+Elements can customize the follower with `data-cursor-trail="hide"`,
+`"invert-color"`, `"link"`, `"work-card"`, or `"hide-dot"`. These hooks support
+hiding the effect, changing its color, underlining links, keeping a filled dot
+on work cards, and hiding the dot while retaining the trail. Native links and buttons receive the interactive ring
+automatically.
 
 ## Active navigation glass
 
