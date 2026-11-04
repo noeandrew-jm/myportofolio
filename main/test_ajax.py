@@ -48,7 +48,7 @@ class CreateProjectAjaxTests(TestCase):
                 self.assertEqual(response.context["can_create_projects"], user == self.admin)
                 if user == self.admin:
                     self.assertContains(response, 'popovertarget="add-project-modal"')
-                    self.assertContains(response, f'id="project-form" method="post" action="{self.url}"')
+                    self.assertContains(response, f'id="project-form" method="post" action="{reverse("api:project-list")}"')
                     self.assertTemplateUsed(response, "components/project_form_modal.html")
                 else:
                     self.assertNotContains(response, 'id="project-form"')

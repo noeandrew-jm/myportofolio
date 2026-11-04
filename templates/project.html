@@ -3,15 +3,15 @@
 {% block title %}Projects - {{ name }}{% endblock title %}
 {% block meta %}
 {{ block.super }}
-<script src="{% static 'js/projects.js' %}?v=toast-errors-20261004" defer></script>
+<script src="{% static 'js/projects.js' %}?v=drf-20261104" defer></script>
 {% endblock meta %}
 {% block content %}
 <main id="projects-app"
-      data-projects-endpoint="{% url 'main:get_projects_json' %}"
+      data-projects-endpoint="{% url 'api:project-list' %}"
       data-detail-url="{% url 'main:project_detail' '00000000-0000-0000-0000-000000000000' %}"
       data-edit-url="{% url 'main:update_project' '00000000-0000-0000-0000-000000000000' %}"
-      data-delete-url="{% url 'main:delete_project' '00000000-0000-0000-0000-000000000000' %}"
-      data-star-url="{% url 'main:toggle_star' '00000000-0000-0000-0000-000000000000' %}"
+      data-delete-url="{% url 'api:project-detail' '00000000-0000-0000-0000-000000000000' %}"
+      data-star-url="{% url 'api:project-star' '00000000-0000-0000-0000-000000000000' %}"
       data-login-url="{% url 'main:login' %}">
     <section class="page-intro showcase-intro">
         <div class="container showcase-intro-layout">
@@ -60,6 +60,7 @@
         </div>
     </section>
 </main>
+<div id="project-csrf-token" hidden>{% csrf_token %}</div>
 <template id="project-card-template">
     <article class="showcase-card">
         <h2 class="showcase-title"><a class="project-title-link"></a></h2>
@@ -72,9 +73,7 @@
             <a class="button button-secondary" data-edit-project>Edit Proyek</a>
             {% endif %}
             {% if user.is_authenticated %}
-            <form method="post" class="star-form">
-                {% csrf_token %}
-                <input type="hidden" name="next">
+            <form method="post" class="star-form" data-api-action="star">
                 <button type="submit" class="button button-star">
                     <span aria-hidden="true">&#9733;</span> <span data-star-label></span>
                     <span class="star-count"></span>
@@ -93,8 +92,7 @@
                     <p>Apakah Anda yakin ingin menghapus <strong data-delete-title></strong>?</p>
                     <div class="project-delete-modal__actions">
                         <button type="button" class="button button-secondary" popovertargetaction="hide" autofocus>Batal</button>
-                        <form method="post">
-                            {% csrf_token %}
+                        <form method="post" data-api-action="delete">
                             <button type="submit" class="button button-danger">Ya, Hapus</button>
                         </form>
                     </div>

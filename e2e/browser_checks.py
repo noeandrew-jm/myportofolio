@@ -1,5 +1,6 @@
 """Selenium authentication, authorization, CSRF, and AJAX project scenarios."""
 
+import json
 import os
 from pathlib import Path
 import secrets
@@ -110,6 +111,27 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
     def assert_same_document(self):
         self.assertTrue(self.driver.execute_script("return window.ajaxDocumentMarker === 'unchanged';"))
 
+    def track_project_mutations(self):
+        self.driver.execute_script("""
+            window.ajaxDocumentMarker = 'unchanged';
+            window.projectMutations = [];
+            const originalFetch = window.projectFetchBeforeTracking || window.fetch;
+            window.projectFetchBeforeTracking = originalFetch;
+            window.fetch = async (url, options = {}) => {
+                const response = await originalFetch(url, options);
+                if (options.method && !['GET', 'HEAD', 'OPTIONS'].includes(options.method)) {
+                    window.projectMutations.push({
+                        method: options.method,
+                        path: new URL(url, location.href).pathname,
+                        status: response.status,
+                        headers: Object.fromEntries(new Headers(options.headers)),
+                        body: options.body || null,
+                    });
+                }
+                return response;
+            };
+        """)
+
     def test_public_reads_controls_and_toast_for_all_roles(self):
         Project.objects.all().delete()
         project = Project.objects.create(
@@ -148,14 +170,14 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                 self.assertFalse(self.driver.find_element(By.ID, "error").is_displayed())
                 result = self.driver.execute_async_script("""
                     const done = arguments[arguments.length - 1];
-                    fetch(arguments[0], {credentials: 'same-origin'})
+                    fetch(arguments[0], {credentials: 'same-origin', headers: {Accept: 'application/json'}})
                         .then(async response => done({status: response.status, rows: await response.json()}))
                         .catch(error => done({error: String(error)}));
-                """, reverse("main:get_projects_json"))
+                """, reverse("api:project-list"))
                 self.assertEqual(result.get("status"), 200, result)
-                self.assertEqual([row["pk"] for row in result["rows"]], [str(project.pk)])
-                self.assertEqual(result["rows"][0]["fields"]["title"], project.title)
-                self.assertIs(result["rows"][0]["fields"]["is_starred"], False)
+                self.assertEqual([row["id"] for row in result["rows"]], [str(project.pk)])
+                self.assertEqual(result["rows"][0]["title"], project.title)
+                self.assertIs(result["rows"][0]["is_starred"], False)
                 self.assertEqual(bool(self.driver.find_elements(By.ID, "add-project-modal")), can_manage)
                 self.assertEqual(bool(self.driver.find_elements(By.CLASS_NAME, "project-add-button")), can_manage)
                 self.assertEqual(bool(self.driver.find_elements(By.CSS_SELECTOR, "#project-cards [data-edit-project]")), can_edit)
@@ -196,14 +218,14 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
             window.hostileProjectReadMessage = arguments[1];
             window.fetch = (url, options) => {
                 const parsed = new URL(url, location.href);
-                if (parsed.pathname === arguments[0]) {
+                if (parsed.pathname === arguments[0] && (!options?.method || options.method === 'GET')) {
                     window.projectReads.push(parsed.searchParams.get('title'));
                     if (window.failProjectRead === 'http') return Promise.resolve(new Response('', {status: 503}));
                     if (window.failProjectRead === 'network') return Promise.reject(new TypeError('Failed to fetch'));
                     if (window.failProjectRead === 'invalid-json') return Promise.resolve(new Response('invalid JSON'));
                     if (window.failProjectRead === 'invalid-list') return Promise.resolve(new Response('{}'));
                     if (window.failProjectRead === 'server-message') return Promise.resolve(new Response(
-                        JSON.stringify({message: window.hostileProjectReadMessage}),
+                        JSON.stringify({detail: window.hostileProjectReadMessage}),
                         {status: 503, headers: {'Content-Type': 'application/json'}},
                     ));
                     if (window.holdProjectRead) return new Promise(resolve => {
@@ -218,7 +240,7 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                 field.value = query;
                 field.dispatchEvent(new Event('input', {bubbles: true}));
             }
-        """, reverse("main:get_projects_json"), hostile_read_message)
+        """, reverse("api:project-list"), hostile_read_message)
         self.wait.until(lambda driver: driver.execute_script("return typeof window.releaseProjectRead === 'function';"))
         self.assertTrue(self.driver.find_element(By.ID, "loading").is_displayed())
         self.assertEqual(self.driver.find_element(By.ID, "grid").get_attribute("aria-busy"), "true")
@@ -298,13 +320,13 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
             window.projectReadTimes = [];
             window.fetch = (url, options) => {
                 const parsed = new URL(url, location.href);
-                if (parsed.pathname === arguments[0]) {
+                if (parsed.pathname === arguments[0] && (!options?.method || options.method === 'GET')) {
                     window.projectReads.push(parsed.searchParams.get('title'));
                     window.projectReadTimes.push(performance.now());
                 }
                 return window.originalFetch(url, options);
             };
-        """, reverse("main:get_projects_json"))
+        """, reverse("api:project-list"))
         # Each keystroke resets the timer: even after 500 ms overall, no request
         # should be sent until the last input has been idle for 300 ms.
         reads_before_idle = self.driver.execute_async_script("""
@@ -393,7 +415,7 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                 window.readsAtEnter = [...window.projectReads];
             });
             document.getElementById('search-input').value = '';
-        """, reverse("main:get_projects_json"))
+        """, reverse("api:project-list"))
         self.driver.find_element(By.ID, "search-input").send_keys("Beta", Keys.ENTER)
         self.assertEqual(self.driver.execute_script("return window.readsAtEnter;"), ["Beta"])
         self.wait.until(lambda driver: driver.execute_script("return typeof window.projectBodies.Beta === 'function';"))
@@ -438,13 +460,13 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
             window.hostileValidationMessage = arguments[2];
             window.fetch = (url, options) => {
                 const parsed = new URL(url, location.href);
-                if (parsed.pathname === arguments[0]) {
+                if (parsed.pathname === arguments[0] && (!options?.method || options.method === 'GET')) {
                     window.projectReads.push(parsed.searchParams.get('title'));
                 }
                 if (parsed.pathname === arguments[1] && options?.method === 'POST') {
                     if (window.postFailure === 'forbidden') {
                         return Promise.resolve(new Response(JSON.stringify({
-                            message: 'Hanya pemilik portofolio yang dapat menambahkan proyek.',
+                            detail: 'Hanya pemilik portofolio yang dapat menambahkan proyek.',
                         }), {status: 403, headers: {'Content-Type': 'application/json'}}));
                     }
                     if (window.postFailure === 'network') {
@@ -452,13 +474,13 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                     }
                     if (window.postFailure === 'malformed-errors') {
                         return Promise.resolve(new Response(JSON.stringify({
-                            errors: {title: [null, {message: {text: 'Invalid nested message'}}], unknown: null},
-                            message: {text: 'Invalid message object'},
+                            title: [null, {text: 'Invalid nested message'}], unknown: null,
+                            detail: {text: 'Invalid message object'},
                         }), {status: 400, headers: {'Content-Type': 'application/json'}}));
                     }
                     if (window.postFailure === 'malicious-validation') {
                         return Promise.resolve(new Response(JSON.stringify({
-                            errors: {title: [null, 'Plain validation error.', {message: window.hostileValidationMessage}]},
+                            title: [null, 'Plain validation error.', window.hostileValidationMessage],
                         }), {status: 400, headers: {'Content-Type': 'application/json'}}));
                     }
                     if (window.postFailure === 'html_error' || window.postFailure === 'html_success') {
@@ -470,12 +492,12 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                 }
                 return window.originalFetch(url, options);
             };
-        """, reverse("main:get_projects_json"), reverse("main:create_project_ajax"), hostile_validation_message)
+        """, reverse("api:project-list"), reverse("api:project-list"), hostile_validation_message)
         self.click(".project-add-button")
         self.fill_project("Beta outside active filter")
         self.assertEqual(
             self.driver.find_element(By.ID, "project-form").get_attribute("action"),
-            self.live_server_url + reverse("main:create_project_ajax"),
+            self.live_server_url + reverse("api:project-list"),
         )
         for mode, message in (
             ("forbidden", "Hanya pemilik portofolio"),
@@ -533,7 +555,7 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         self.submit_login("admin_test", self.admin_password)
         self.open_page("show_projects")
         self.wait.until(EC.visibility_of_element_located((By.ID, "empty")))
-        self.driver.execute_script("window.ajaxDocumentMarker = 'unchanged';")
+        self.track_project_mutations()
         self.click(".project-add-button")
         self.wait.until(EC.visibility_of_element_located((By.ID, "project-form")))
         self.fill_project("   ")
@@ -549,16 +571,16 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         title_field = self.driver.find_element(By.CSS_SELECTOR, '#project-form [name="title"]')
         title_field.clear()
         title_field.send_keys("Browser AJAX project")
-        # An expired/mismatched CSRF token produces HTML 403; it still must show
-        # feedback, preserve input, and re-enable the submit button.
+        # DRF returns JSON 403 for a mismatched session CSRF token; feedback
+        # must preserve input and re-enable the submit button.
         self.driver.execute_script("""
             const token = document.querySelector('#project-form [name=csrfmiddlewaretoken]');
             window.validProjectCsrf = token.value;
             token.value = 'invalid';
         """)
         self.submit_project()
-        self.wait.until(EC.text_to_be_present_in_element((By.ID, "toast-message"), "403"))
-        self.assertIn("403", self.driver.find_element(By.ID, "project-form-errors").text)
+        self.wait.until(EC.text_to_be_present_in_element((By.ID, "toast-message"), "CSRF"))
+        self.assertIn("CSRF", self.driver.find_element(By.ID, "project-form-errors").text)
         self.assertEqual(Project.objects.count(), 0)
         self.assertTrue(self.driver.find_element(By.CSS_SELECTOR, '#project-form button[type="submit"]').is_enabled())
         self.driver.execute_script("document.querySelector('#project-form [name=csrfmiddlewaretoken]').value = window.validProjectCsrf;")
@@ -590,6 +612,15 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         self.assertEqual(self.driver.find_element(By.ID, "toast-title").text, "Berhasil")
         self.assertEqual(title_field.get_attribute("value"), "")
         self.assertTrue(title_field.is_enabled())
+        mutations = self.driver.execute_script("return window.projectMutations;")
+        self.assertEqual([item["status"] for item in mutations], [400, 403, 201])
+        for request in mutations:
+            self.assertEqual(request["method"], "POST")
+            self.assertEqual(request["path"], reverse("api:project-list"))
+            self.assertEqual(request["headers"]["accept"], "application/json")
+            self.assertEqual(request["headers"]["content-type"], "application/json")
+            self.assertIn("x-csrftoken", request["headers"])
+            self.assertNotIn("csrfmiddlewaretoken", json.loads(request["body"]))
 
         # Toast uses text rather than interpreting user-controlled HTML.
         self.driver.execute_script("window.showToast(arguments[0], arguments[1], 'error', 10000);", '<img src=x onerror="window.toastXss=true">', "<svg onload='window.toastXss=true'>message</svg>")
@@ -598,14 +629,26 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         self.click("#toast-component .toast-close")
 
         project = Project.objects.get()
+        self.track_project_mutations()
         self.click("#project-cards .star-form button")
         self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#project-cards .button-star[aria-pressed="true"]')))
         self.assertEqual(project.starred_by.count(), 1)
+        self.assert_same_document()
+        self.click("#project-cards .star-form button")
+        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#project-cards .button-star[aria-pressed="false"]')))
+        self.assertEqual(project.starred_by.count(), 0)
+        self.assert_same_document()
+        mutations = self.driver.execute_script("return window.projectMutations;")
+        self.assertEqual([(item["method"], item["path"], item["status"]) for item in mutations], [
+            ("POST", reverse("api:project-star", args=[project.pk]), 200),
+            ("POST", reverse("api:project-star", args=[project.pk]), 200),
+        ])
         self.click("#project-cards .project-title-link")
         self.wait.until(EC.url_to_be(self.live_server_url + reverse("main:project_detail", args=[project.pk])))
         self.assertIn(project.title, self.driver.find_element(By.TAG_NAME, "main").get_attribute("textContent"))
         self.open_page("show_projects")
         self.wait_for_titles([project.title])
+        self.track_project_mutations()
         self.click(f'#project-cards [popovertarget="delete-project-{project.pk}"]')
         self.wait.until(EC.visibility_of_element_located((By.ID, f"delete-project-{project.pk}")))
         self.click(f'#delete-project-{project.pk} button[autofocus]')
@@ -614,7 +657,56 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         self.click(f'#delete-project-{project.pk} button[type="submit"]')
         self.wait.until(EC.visibility_of_element_located((By.ID, "empty")))
         self.assertFalse(Project.objects.filter(pk=project.pk).exists())
+        self.assert_same_document()
+        mutations = self.driver.execute_script("return window.projectMutations;")
+        self.assertEqual([(item["method"], item["path"], item["status"]) for item in mutations], [
+            ("DELETE", reverse("api:project-detail", args=[project.pk]), 204),
+        ])
         print("[PASS] Modal AJAX, validasi/CSRF, toast, anti-duplikasi, star/detail/delete", flush=True)
+
+    def test_member_star_restores_csrf_cookie_and_blocks_duplicate_submission(self):
+        Project.objects.all().delete()
+        project = Project.objects.create(
+            title="Member star project", description="A session without a CSRF cookie", tech_stack="Django",
+        )
+        self.open_page("login")
+        self.submit_login("burhan_test", self.user_password)
+        self.driver.delete_cookie(settings.CSRF_COOKIE_NAME)
+        self.assertIsNotNone(self.driver.get_cookie(settings.SESSION_COOKIE_NAME))
+        self.open_page("show_projects")
+        self.wait_for_titles([project.title])
+        self.assertTrue(self.driver.get_cookie(settings.CSRF_COOKIE_NAME)["value"])
+        self.assertFalse(self.driver.find_elements(By.ID, "add-project-modal"))
+        self.track_project_mutations()
+        self.driver.execute_script("""
+            const originalFetch = window.fetch;
+            window.starRequests = 0;
+            window.fetch = (url, options) => {
+                if (new URL(url, location.href).pathname === arguments[0] && options?.method === 'POST') {
+                    window.starRequests++;
+                    return new Promise(resolve => {
+                        window.releaseStar = () => resolve(originalFetch(url, options));
+                    });
+                }
+                return originalFetch(url, options);
+            };
+        """, reverse("api:project-star", args=[project.pk]))
+        self.click("#project-cards .star-form button")
+        self.wait.until(lambda driver: driver.execute_script("return typeof window.releaseStar === 'function';"))
+        self.assertFalse(self.driver.find_element(By.CSS_SELECTOR, "#project-cards .star-form button").is_enabled())
+        self.driver.execute_script("""
+            document.querySelector('#project-cards .star-form').dispatchEvent(
+                new Event('submit', {bubbles: true, cancelable: true}),
+            );
+        """)
+        self.assertEqual(self.driver.execute_script("return window.starRequests;"), 1)
+        self.driver.execute_script("window.releaseStar();")
+        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#project-cards .button-star[aria-pressed="true"]')))
+        self.assertEqual(project.starred_by.count(), 1)
+        self.assertEqual(project.starred_by.get().username, "burhan_test")
+        self.assertEqual(self.driver.execute_script("return window.projectMutations.map(item => item.status);"), [200])
+        self.assert_same_document()
+        print("[PASS] Session member tanpa cookie CSRF dapat star sekali tanpa reload", flush=True)
 
     def test_ajax_editor_permissions_and_edit_navigation(self):
         Project.objects.all().delete()

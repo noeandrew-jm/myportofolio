@@ -15,6 +15,7 @@
     const placeholderId = '00000000-0000-0000-0000-000000000000';
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const searchDebounceMs = 300;
+    const pendingProjects = new Set();
     let projectsController;
     let searchTimer;
     let composingSearch = false;
@@ -42,16 +43,17 @@
     }
 
     function serverMessage(payload) {
-        return payload && typeof payload.message === 'string' ? payload.message : '';
+        if (!payload || typeof payload !== 'object') return '';
+        return typeof payload.detail === 'string' ? payload.detail
+            : typeof payload.message === 'string' ? payload.message : '';
     }
 
-    function buildProjectCardElement(item) {
-        if (!uuidPattern.test(item.pk) || !item.fields) throw new Error('Invalid project data');
-        const project = item.fields;
+    function buildProjectCardElement(project) {
+        if (!project || !uuidPattern.test(project.id)) throw new Error('Invalid project data');
         const article = cardTemplate.content.firstElementChild.cloneNode(true);
-        const route = name => app.dataset[name].replace(placeholderId, item.pk);
+        const route = name => app.dataset[name].replace(placeholderId, project.id);
         const title = String(project.title ?? '');
-        article.dataset.projectId = item.pk;
+        article.dataset.projectId = project.id;
         const titleLink = article.querySelector('.project-title-link');
         titleLink.textContent = title;
         titleLink.href = route('detailUrl');
@@ -89,10 +91,10 @@
         if (starForm) {
             const starred = project.is_starred === true;
             starForm.action = route('starUrl');
-            starForm.elements.next.value = next;
             starButton.classList.toggle('is-starred', starred);
             starButton.setAttribute('aria-pressed', String(starred));
-            starButton.title = `${starred ? 'Batalkan star untuk' : 'Beri star untuk'} ${title}`;
+            const names = project.starred_by_names ? `; star oleh ${project.starred_by_names}` : '';
+            starButton.title = `${starred ? 'Batalkan star untuk' : 'Beri star untuk'} ${title}${names}`;
             starButton.querySelector('[data-star-label]').textContent = starred ? 'Unstar' : 'Star';
         } else {
             starButton.href = `${app.dataset.loginUrl}?next=${encodeURIComponent(next)}`;
@@ -102,7 +104,7 @@
         const deleteButton = article.querySelector('[data-delete-project]');
         if (deleteButton) {
             const deleteModal = article.querySelector('.project-delete-modal');
-            const modalId = `delete-project-${item.pk}`;
+            const modalId = `delete-project-${project.id}`;
             deleteModal.id = modalId;
             deleteModal.querySelector('h2').id = `${modalId}-title`;
             deleteModal.setAttribute('aria-labelledby', `${modalId}-title`);
@@ -114,8 +116,75 @@
             deleteModal.querySelector('[data-delete-title]').textContent = title;
             deleteModal.querySelector('form').action = route('deleteUrl');
         }
+        setCardBusy(article, pendingProjects.has(project.id));
         return article;
     }
+
+    function setCardBusy(article, busy) {
+        article.querySelectorAll('[data-api-action] button[type="submit"], [data-delete-project]')
+            .forEach(button => { button.disabled = busy; });
+    }
+
+    function setProjectBusy(id, busy) {
+        cards.querySelectorAll('[data-project-id]').forEach(article => {
+            if (article.dataset.projectId === id) setCardBusy(article, busy);
+        });
+    }
+
+    async function writeProject(url, method, payload, token) {
+        const csrfToken = token ?? document.querySelector('#project-csrf-token input').value;
+        const response = await fetch(url, {
+            method,
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: payload === undefined ? undefined : JSON.stringify(payload),
+        }).catch(() => {
+            throw new Error('Tidak dapat terhubung ke server. Periksa daftar proyek sebelum mencoba kembali.');
+        });
+        if (method === 'DELETE' && response.status === 204) return null;
+        const result = await response.json().catch(() => null);
+        if (!response.ok) {
+            const messages = result && typeof result === 'object'
+                ? Object.values(result).flat().filter(value => typeof value === 'string') : [];
+            const error = new Error(messages.join(' ') || `Terjadi kesalahan (status ${response.status}). Silakan coba lagi.`);
+            error.payload = result;
+            throw error;
+        }
+        const expectedStatus = method === 'POST' && payload !== undefined ? 201 : 200;
+        // A login page or malformed success must never clear unsaved input.
+        if (method === 'DELETE' || response.status !== expectedStatus || !result || !uuidPattern.test(result.id)) {
+            throw new Error('Respons server tidak valid. Periksa daftar proyek sebelum mencoba kembali.');
+        }
+        return result;
+    }
+
+    grid.addEventListener('submit', async event => {
+        const form = event.target.closest('form[data-api-action]');
+        if (!form) return;
+        event.preventDefault();
+        const article = form.closest('[data-project-id]');
+        const id = article.dataset.projectId;
+        if (pendingProjects.has(id)) return;
+        const action = form.dataset.apiAction;
+        pendingProjects.add(id);
+        setProjectBusy(id, true);
+        try {
+            await writeProject(form.action, action === 'star' ? 'POST' : 'DELETE');
+            const deleteModal = form.closest('.project-delete-modal');
+            if (deleteModal?.matches(':popover-open')) deleteModal.hidePopover();
+            window.showToast('Berhasil', action === 'star' ? 'Star berhasil diperbarui.' : 'Proyek berhasil dihapus!', 'success');
+            await searchProjects();
+        } catch (error) {
+            window.showToast('Gagal memperbarui proyek', error.message || 'Tidak dapat terhubung ke server.', 'error', 5000);
+        } finally {
+            pendingProjects.delete(id);
+            setProjectBusy(id, false);
+        }
+    });
 
     function updateSearchUrl(query) {
         const url = new URL(window.location.href);
@@ -249,6 +318,9 @@
         submitting = true;
         clearFormErrors();
         const formData = new FormData(projectForm);
+        const payload = Object.fromEntries([
+            'title', 'description', 'tech_stack', 'project_url', 'project_image_url',
+        ].map(name => [name, formData.get(name)]));
         const editableFields = [...projectForm.querySelectorAll('input:not([type="hidden"]), textarea, select')]
             .filter(field => !field.disabled);
         editableFields.forEach(field => { field.disabled = true; });
@@ -258,35 +330,15 @@
         submitButton.textContent = 'Menyimpan...';
         projectForm.setAttribute('aria-busy', 'true');
         try {
-            const response = await fetch(projectForm.action, {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    Accept: 'application/json',
-                    'X-CSRFToken': projectForm.elements.csrfmiddlewaretoken.value,
-                },
-                body: formData,
-            });
-            const payload = await response.json().catch(() => null);
-            const result = payload && typeof payload === 'object' ? payload : {};
+            await writeProject(projectForm.action, 'POST', payload, projectForm.elements.csrfmiddlewaretoken.value);
+            projectForm.reset();
+            if (modal.matches(':popover-open')) modal.hidePopover();
+            window.showToast('Berhasil', 'Proyek baru berhasil ditambahkan!', 'success');
+            await searchProjects();
+        } catch (error) {
             editableFields.forEach(field => { field.disabled = false; });
-            if (response.ok) {
-                // An HTML login page or intermediary response may still use 200.
-                // Only the create endpoint's confirmed result can clear input.
-                if (response.status !== 201 || !uuidPattern.test(result.pk)) {
-                    showSubmissionError('Respons server tidak valid. Periksa daftar proyek sebelum mencoba kembali.');
-                    return;
-                }
-                projectForm.reset();
-                if (modal.matches(':popover-open')) modal.hidePopover();
-                window.showToast('Berhasil', 'Proyek baru berhasil ditambahkan!', 'success');
-                await searchProjects();
-            } else {
-                const message = showFormErrors(result.errors) || serverMessage(result);
-                showSubmissionError(message || `Terjadi kesalahan (status ${response.status}). Silakan coba lagi.`);
-            }
-        } catch {
-            showSubmissionError('Tidak dapat terhubung ke server. Periksa daftar proyek sebelum mencoba kembali.');
+            const message = showFormErrors(error.payload) || error.message;
+            showSubmissionError(message || 'Tidak dapat terhubung ke server. Periksa daftar proyek sebelum mencoba kembali.');
         } finally {
             submitting = false;
             editableFields.forEach(field => { field.disabled = false; });
