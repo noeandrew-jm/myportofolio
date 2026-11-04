@@ -2,6 +2,10 @@
 
 Website portofolio pribadi untuk Proyek Individu PBP, dibangun bertahap menggunakan Django 5.2, HTML5, dan CSS3. Profil dan tiga focus areas ada di halaman utama; pengalaman, prestasi, dan proyek ditampilkan dari database pada halaman terpisah.
 
+Tutorial 06 menerapkan Django REST Framework pada Projects: CRUD, pencarian,
+star, izin Editor, session/CSRF, dan AJAX. [Panduan Tutorial 06](docs/tutorial-06-api.md)
+memuat kontrak API, pengujian, langkah commit beserta pesannya, serta deploy PWS.
+
 Nama : Noe Andrew JM Silalahi
 
 NPM : 2506621440
@@ -47,12 +51,16 @@ Buka <http://127.0.0.1:8000/>. Biarkan terminal server tetap berjalan; tekan `Ct
 | `/projects/` | Daftar proyek dan pencarian `?title=...` | Model `Project`, dimuat dengan AJAX dari JSON |
 | `/projects/<uuid>/` | Detail proyek, jumlah star, dan status star pengguna | Publik; model `Project` |
 | `/projects/add/` | Form tambah proyek | Superuser; `ProjectForm` dengan validasi dan CSRF |
-| `/projects/add-ajax/` | Tambah proyek dari modal tanpa reload | Superuser; POST dengan `ProjectForm` dan CSRF; respons JSON |
+| `/projects/add-ajax/` | Endpoint tambah AJAX lama, tetap kompatibel | Superuser; POST dengan `ProjectForm` dan CSRF; respons JSON |
 | `/projects/<uuid>/edit/` | Form ubah proyek | Anggota grup `Editor` atau superuser; `ProjectForm` dan CSRF |
 | `/projects/<uuid>/delete/` | Hapus proyek lewat konfirmasi | Superuser; POST dengan CSRF; GET tidak menghapus |
 | `/projects/<uuid>/star/` | Memberi atau membatalkan star | Pengguna login; hanya POST dengan CSRF |
 | `/api/projects/` | Data proyek berformat JSON, filter `?title=...` | Publik; field proyek, jumlah star, dan status star pengguna |
 | `/api/projects/xml/` | Percobaan format XML, filter `?title=...` | Publik; field proyek tanpa relasi akun atau metadata star |
+| `/api/v1/projects/` | API DRF daftar/pencarian dan tambah dari modal | GET publik; POST JSON khusus superuser |
+| `/api/v1/projects/<uuid>/` | API DRF detail, ubah, dan hapus | GET publik; PUT/PATCH Editor atau superuser; DELETE superuser |
+| `/api/v1/projects/<uuid>/star/` | API DRF star/unstar tanpa reload | POST oleh akun login dengan CSRF |
+| `/api-auth/login/` | Login Browsable API | Session Django yang sama dengan login portofolio |
 | `/register/`, `/login/`, `/logout/` | Registrasi, login, dan logout | Autentikasi dan sesi bawaan Django |
 | `/admin/` | Pengelolaan pengalaman, prestasi, dan proyek | Django admin; perlu login |
 
@@ -74,11 +82,11 @@ Model `Achievement` memiliki UUID sebagai primary key, serta `title`, `descripti
 
 Implementasi melanjutkan `ProjectForm` yang sudah mulai dibuat pada proyek ini dengan menambahkan model `Project`, migrasi `0005_project`, serta halaman Projects. `Achievement` dari Tugas 2 dan data prestasi sebelumnya tetap tersedia. Model Project menggunakan UUID serta field `title`, `description`, `tech_stack`, `project_url`, dan `project_image_url`; kedua URL opsional. Proyek baru tidak diisi dengan contoh fiktif dari tutorial. Masukkan judul, deskripsi, teknologi, dan tautan proyek milik sendiri melalui **Projects → Tambah Proyek**.
 
-Form menampilkan error tanpa menghilangkan input. Setelah berhasil menyimpan, halaman Projects menampilkan pesan sukses. Pencarian judul memangkas spasi awal/akhir dan tidak membedakan kapitalisasi. Tombol **Hapus Proyek** membuka konfirmasi; Batal, tombol tutup, klik latar, atau Escape tidak menghapus data. Hanya tombol **Ya, Hapus** yang mengirim POST dengan token CSRF. Konfirmasi menggunakan Popover API pada browser modern.
+Form menampilkan error tanpa menghilangkan input. Setelah berhasil menyimpan, halaman Projects menampilkan pesan sukses. Pencarian judul memangkas spasi awal/akhir dan tidak membedakan kapitalisasi. Tombol **Hapus Proyek** membuka konfirmasi; Batal, tombol tutup, klik latar, atau Escape tidak menghapus data. Tombol **Ya, Hapus** pada daftar mengirim DELETE ke API DRF dengan CSRF; form klasik pada detail tetap memakai POST. Konfirmasi menggunakan Popover API pada browser modern.
 
 Tutorial 05 mengganti alur serialisasi/deserialisasi di server: `show_projects` kini hanya merender kerangka halaman dan form. `static/js/projects.js` mengambil JSON melalui Fetch API, menampilkan loading/error/empty state, lalu merakit kartu dengan DOM dan `textContent`. Pencarian berjalan 300 ms setelah pengguna berhenti mengetik; Enter langsung mencari. `AbortController` membatalkan permintaan lama agar hasil pencarian terbaru tidak tertimpa. Tombol Reset dan Coba Lagi juga bekerja tanpa reload. Kartu geser diperbarui setiap data berubah.
 
-Tombol **Tambah Proyek** membuka modal Popover API untuk superuser. Form dikirim ke `/projects/add-ajax/` dengan `FormData` serta token CSRF melalui header dan field form. Respons 201 menutup modal, menampilkan toast, dan memuat ulang daftar dengan filter yang masih aktif. Respons 400 menampilkan kesalahan validasi pada form dan toast; 403 menolak akun tanpa izin. Tombol simpan dinonaktifkan selama pengiriman. Endpoint form klasik, edit, hapus, dan star tetap tersedia; edit/hapus/star masih memakai navigasi atau POST biasa.
+Tombol **Tambah Proyek** membuka modal Popover API untuk superuser. Sejak Tutorial 06, lima field form dikirim sebagai JSON ke `/api/v1/projects/` dengan token CSRF pada header. Respons 201 menutup modal, menampilkan toast, dan memuat ulang daftar dengan filter yang masih aktif. Respons 400 menampilkan kesalahan validasi pada form dan toast; 403 menolak akun tanpa izin. Tombol simpan dinonaktifkan selama pengiriman. Star dan hapus pada daftar memakai API tanpa reload; halaman edit serta endpoint form klasik tetap tersedia.
 
 Untuk memeriksa data lewat browser atau Postman, buat proyek lewat form, kemudian gunakan GET:
 
@@ -130,7 +138,8 @@ Checklist implementasi dan pemeriksaan manual empat peran tersedia di [checklist
 ```powershell
 .\env\Scripts\python.exe manage.py check
 .\env\Scripts\python.exe manage.py makemigrations --check --dry-run
-.\env\Scripts\python.exe manage.py test --verbosity 2
+.\env\Scripts\python.exe manage.py test main.tests_api --verbosity 2
+.\env\Scripts\python.exe manage.py test main contacts --verbosity 1
 ```
 
 Suite Django mencakup profil dan kontak, navigasi bersama, URL tidak ditemukan, model/status pengalaman, prestasi, serta Projects. Tes Projects mencakup validasi form, CRUD sesuai empat peran, daftar/detail publik, kontrol aksi, star/unstar, pencarian, format JSON/XML tanpa identitas pemberi star, kondisi kosong, escaping, pesan sukses, tujuan login, dan CSRF. Tes AJAX juga memeriksa status respons, sanitasi, metadata star per pengguna, serta efisiensi query. Tes menggunakan database pengujian tersendiri; pembersihan data seed dalam tes tidak menghapus data portofolio lokal. Jumlah tes terkini ditampilkan oleh runner.
@@ -157,6 +166,7 @@ Hapus `--headless` untuk melihat Chrome dikendalikan otomatis, atau tambahkan `-
 | Tutorial Selenium dan Burp Suite | Otomasi login, cookie, akses superuser, logout; tes CSRF dan panduan intersepsi request lokal |
 | Tugas 4 | Grup Editor, otorisasi empat peran di server dan template, detail publik, star dengan CSRF, JSON/XML tanpa identitas pengguna, serta pengujian akses |
 | Tutorial 05 | Daftar dan pencarian AJAX, debounce, modal tambah, toast global, perlindungan XSS/CSRF, serta pengujian browser |
+| Tutorial 06 | API DRF v1, serializer/validasi, CRUD/star, izin Editor, session/CSRF, AJAX JSON, dan tes API/browser |
 
 Saat mengambil perubahan Tugas 2 dari Git, jalankan ulang instalasi dependency bila `requirements.txt` berubah, kemudian `migrate` dan `collectstatic --noinput` sebelum menyalakan server. Tidak perlu membuat migrasi baru hanya untuk menambahkan objek melalui admin.
 

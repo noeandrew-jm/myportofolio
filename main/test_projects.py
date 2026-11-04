@@ -345,7 +345,7 @@ class ProjectPageTests(TestCase):
         query.assert_not_called()
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("project_list", response.context)
-        self.assertContains(response, reverse("main:get_projects_json"))
+        self.assertContains(response, reverse("api:project-list"))
         self.assertNotContains(response, self.project.title)
 
     def test_delete_confirmation_posts_with_csrf_and_unique_project_target(self):

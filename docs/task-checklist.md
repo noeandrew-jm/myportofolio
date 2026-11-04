@@ -3,6 +3,33 @@
 Bagian data yang dipilih adalah **Projects**. Implementasi mempertahankan data
 yang sudah ada dan tidak memerlukan perubahan skema database.
 
+## Audit Tutorial 06 — 4 November 2026
+
+| Persyaratan DRF | Status implementasi/verifikasi |
+| --- | --- |
+| ModelSerializer dan validasi | Field eksplisit, teks wajib setelah sanitasi, URL HTTP/HTTPS opsional, UUID/star read-only |
+| API daftar/detail | Publik, pencarian judul, hasil kosong 200, detail tidak ditemukan 404, HEAD/OPTIONS tidak mengubah data |
+| Create/update/delete | POST 201, PUT/PATCH 200, DELETE 204 body kosong; error validasi 400 |
+| Peran | Pengunjung membaca; akun login memberi star; Editor mengubah; hanya superuser membuat/menghapus |
+| Penyesuaian Projects | Projects adalah bagian pilihan tugas, sehingga permission Editor dipakai sesuai bagian akhir lampiran |
+| Star | POST toggle berdasarkan `request.user`, relasi tidak bisa dipalsukan, tanpa retry otomatis |
+| Session dan CSRF | Token wajib untuk penulisan; penolakan token/origin salah diuji; cookie pulih pada halaman Projects |
+| AJAX | JSON datar, create/star/delete tanpa reload, modal/toast, debounce, pembatalan request lama, escaping DOM |
+| Fitur terdahulu | Profil, Experience, Achievements, detail/edit, JSON/XML dan form lama tetap tersedia |
+| Dependency/test | DRF 3.18.3 tercatat; test API berada di `main/tests_api.py`, bukan folder migrasi |
+| Verifikasi lokal | 24 tes API, 127 tes Django keseluruhan, serta 10 skenario browser terverifikasi |
+| Git/PWS/pengumpulan | Panduan siap; commit/push/deploy dan SCELE menunggu tindakan atau persetujuan pemilik |
+
+Jumlah tes API lebih banyak dari 13 contoh karena tambahan pemeriksaan Editor,
+CSRF, sanitasi, privasi akun, dan query. Sepuluh skenario browser diverifikasi
+melalui sembilan keberhasilan pada suite lengkap dan satu pengujian ulang
+terarah setelah perbaikan pencatat request tes. Pemeriksaan sistem/dependency,
+migrasi, sintaks JavaScript, `collectstatic`, dan whitespace diff berhasil.
+Panduan endpoint, shell serializer, pesan commit, serta PWS tersedia di
+[Tutorial 06](tutorial-06-api.md).
+
+## Fitur dasar dan kompatibilitas sebelumnya
+
 | Persyaratan | Implementasi |
 | --- | --- |
 | Root template | `templates/base.html`; halaman kartu memakai `showcase_base.html` yang extend root; form tambah/edit memakai satu `projects_form.html` |
@@ -12,11 +39,11 @@ yang sudah ada dan tidak memerlukan perubahan skema database.
 | Update | `update_project`, GET/POST `/projects/<uuid>/edit/`, form terisi data lama |
 | Delete | `delete_project`, POST `/projects/<uuid>/delete/`, konfirmasi dan CSRF |
 | JSON | `get_projects_json`, GET `/api/projects/`, pencarian judul opsional `?title=...` |
-| Daftar AJAX (Tutorial 05) | `show_projects` merender kerangka; `projects.js` mengambil JSON lalu membangun kartu melalui DOM dan `textContent` |
+| Daftar AJAX | `show_projects` merender kerangka; `projects.js` mengambil JSON datar DRF dari `/api/v1/projects/`, lalu membangun kartu melalui DOM dan `textContent` |
 | Pencarian AJAX | Debounce 300 ms, Enter langsung mencari, pembatalan permintaan lama, Reset dan Coba Lagi |
-| Tambah AJAX | Modal khusus superuser, POST `/projects/add-ajax/`, `ProjectForm`, CSRF, status 201/400/403, penyegaran daftar tanpa reload |
+| Tambah AJAX | Modal khusus superuser, POST JSON `/api/v1/projects/`, serializer, CSRF, status 201/400/403, penyegaran daftar tanpa reload |
 | Toast | Komponen global dengan pesan teks aman, tipe sukses/error/normal, timer dan tombol tutup |
-| XSS | `textContent`, URL HTTP/HTTPS pada kartu dan detail, serta pembersihan tag HTML di `ProjectForm` |
+| XSS | `textContent`, URL HTTP/HTTPS pada kartu dan detail, serta pembersihan tag HTML di form dan serializer |
 | Antarmuka | Tambah Proyek, Edit Proyek, Hapus Proyek dan validasi form |
 | Tampilan data | Kartu bergeser; URL gambar dan proyek opsional; empty state untuk hasil kosong |
 

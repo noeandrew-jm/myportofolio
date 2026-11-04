@@ -19,3 +19,7 @@ __pycache__/
 # Local frontend build dependencies (the browser bundle is kept in static/js)
 node_modules/
 npm-debug.log*
+
+# Selenium Manager downloads/cache (existing tracked files are unaffected)
+/chromedriver/
+/se-metadata.json

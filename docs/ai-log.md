@@ -106,3 +106,45 @@ Pengujian memakai database sementara dan server loopback. Sebanyak 94 tes Django
 Audit ulang pada tanggal yang sama mengikuti permintaan pemilik: "selain commit dan pws. check apakah program saya sudah memenuhi keselurhan ini. bilamana belum kerjakan dengan sempurna". Codex memeriksa kembali lampiran terhadap implementasi dan mempertahankan perubahan yang sudah ada. Perbaikan mencakup `.venv/` pada `.gitignore`, penyaringan URL legacy pada halaman detail, serta pemeriksaan HTTP 201 dan UUID respons tambah agar halaman HTML HTTP 200 tidak disalahartikan sebagai keberhasilan. Dokumentasi frontend dan checklist diselaraskan dengan perilaku AJAX.
 
 Hasil audit ulang: 96 tes Django dan 7 skenario Selenium Chrome lulus. Skenario tambahan mencakup query awal URL, Enter tanpa debounce ganda, respons lama yang selesai setelah pencarian terbaru, kegagalan jaringan/HTML, draft yang dipertahankan, dan filter aktif setelah berhasil menambah proyek. Pemeriksaan konfigurasi, migrasi, sintaks JavaScript, dan whitespace diff lulus; screenshot modal desktop dan mobile diperiksa. Chrome sempat crash sebelum membuka aplikasi ketika dijalankan dalam sandbox; suite berhasil setelah dijalankan dengan izin di luar sandbox, tetap memakai server loopback dan database sementara. Tidak ada commit, push, perubahan data portofolio, deployment PWS, atau pengumpulan SCELE pada audit ulang ini.
+
+## Tutorial 06: Django REST Framework — 4 November 2026
+
+Pemilik melampirkan langkah serializer/API/permission/AJAX/pengujian dan meminta
+implementasi lengkap, urutan commit beserta pesan, serta konfirmasi sebelum
+tindakan Git/PWS yang membutuhkan bantuannya. Codex melanjutkan perubahan awal
+`rest_framework`, requirements, serializer, dan file API kosong. File test
+kosong di `main/migrations/` dibuang dan pengujian ditempatkan pada
+`main/tests_api.py`.
+
+Implementasi mencakup serializer dengan validasi, API CRUD/pencarian/star,
+session/CSRF, routing dan Browsable API, serta integrasi AJAX JSON sambil
+mempertahankan tampilan/carousel dan form edit. Karena bagian pilihan tugas
+yang sudah terdokumentasi adalah Projects, endpoint memakai kebijakan Editor
+pada bagian akhir lampiran: Editor boleh update, hanya pemilik membuat/menghapus.
+API v1 menyertakan username star sesuai tutorial tanpa data akun sensitif;
+kontrak JSON/XML lama dipertahankan.
+
+Verifikasi pada sesi ini:
+
+- 24 tes API/serializer lulus; suite `main contacts` lulus 127 tes.
+- Sepuluh skenario Selenium Chrome 156 terverifikasi. Suite lengkap meluluskan
+  sembilan; satu gagal karena helper tes mencatat request dua kali, lalu lulus
+  pada pengujian ulang terarah setelah helper diperbaiki.
+- Browser memeriksa kontrak JSON/CSRF dan status HTTP, tambah/star/hapus tanpa
+  reload, debounce/hasil terlambat, error/input, XSS, Editor, dan mobile.
+  Screenshot modal desktop/mobile juga diperiksa.
+- Pemeriksaan sistem, dependency, migrasi, sintaks JS, dan whitespace diff
+  berhasil. `collectstatic` menyalin aset DRF dan JS terbaru. Percobaan serializer
+  melalui shell hanya membaca data dan memvalidasi kandidat, tidak menyimpan.
+- Uji mutasi izin dalam memori membuktikan tes gagal bila semua akun login
+  boleh menulis; patch dipulihkan, kemudian tes asli kembali lulus.
+
+Chrome crash saat startup di sandbox; pengujian berhasil dengan izin di luar
+sandbox dan tetap memakai database sementara/server loopback. Metadata cache
+Selenium yang semula bersih dipulihkan, cache unduhan baru diabaikan Git, dan
+driver lama yang sudah dilacak tidak dihapus. Perubahan awal `toast.js` berupa
+baris kosong dipertahankan, hanya trailing whitespace dibersihkan.
+
+Panduan [Tutorial 06](tutorial-06-api.md) mencatat langkah commit bertahap,
+pesan commit, push dan deploy, serta batas verifikasi. Tidak ada commit, push,
+deployment, perubahan akun/data portofolio, atau pengumpulan SCELE pada sesi ini.
