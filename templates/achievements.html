@@ -2,33 +2,74 @@
 {% load static %}
 
 {% block title %}Achievements - {{ name }}{% endblock %}
+{% block meta %}
+{{ block.super }}
+<script src="{% static 'js/achievements.js' %}?v=tugas7-20261109" defer></script>
+{% endblock %}
 
 {% block content %}
-<main>
+<main id="achievements-app"
+      data-endpoint="{% url 'api:achievement-list' %}"
+      data-api-detail-url="{% url 'api:achievement-detail' '00000000-0000-0000-0000-000000000000' %}"
+      data-detail-url="{% url 'main:achievement_detail' '00000000-0000-0000-0000-000000000000' %}"
+      data-edit-url="{% url 'main:update_achievement' '00000000-0000-0000-0000-000000000000' %}"
+      data-star-url="{% url 'api:achievement-star' '00000000-0000-0000-0000-000000000000' %}"
+      data-login-url="{% url 'main:login' %}"
+      data-authenticated="{{ user.is_authenticated|yesno:'true,false' }}"
+      data-can-create="{{ can_create_achievements|yesno:'true,false' }}"
+      data-can-edit="{{ can_edit_achievements|yesno:'true,false' }}">
 <section class="page-intro showcase-intro">
     <div class="container showcase-intro-layout">
         <img class="showcase-decoration showcase-decoration--left showcase-decoration--moon" src="{% static 'image/about/moon.png' %}" alt="" aria-hidden="true" width="180" height="180" draggable="false">
         <div class="showcase-intro-copy">
             <p class="hero-kicker">Selected milestones</p>
-            <h1>Achievements</h1>
+            <div class="project-header">
+                <h1>Achievements</h1>
+                {% if can_create_achievements %}
+                <a class="button project-add-button" href="{% url 'main:create_achievement' %}" data-create-achievement>+ Tambah Prestasi</a>
+                {% endif %}
+            </div>
             <p>A snapshot of competitions, projects, and moments that have shaped how I build and collaborate.</p>
         </div>
         <img class="showcase-decoration showcase-decoration--right showcase-decoration--object" src="{% static 'image/about/object.png' %}" alt="" aria-hidden="true" width="150" height="150" draggable="false">
     </div>
 </section>
-<section class="showcase" aria-label="Achievements" data-showcase>
+<section class="container projects-section" aria-label="Cari prestasi">
+    <form id="achievement-search-form" method="get" action="{% url 'main:show_achievements' %}" class="project-search" role="search">
+        <input type="search" name="title" value="{{ title_query }}" class="project-search__input" placeholder="Cari berdasarkan nama prestasi" aria-label="Cari berdasarkan nama prestasi">
+        <button type="submit" class="button">Cari</button>
+        <button id="reset-achievement-search" type="button" class="button button-secondary" hidden>Reset</button>
+    </form>
+    <div id="achievement-loading" class="projects-feedback" role="status" aria-live="polite" hidden><span class="projects-loading-spinner" aria-hidden="true"></span><p>Memuat prestasi...</p></div>
+    <div id="achievement-error" class="projects-feedback" role="alert" hidden><p id="achievement-load-error"></p><button id="retry-achievements" type="button" class="button button-secondary">Coba Lagi</button></div>
+    <div id="achievement-empty" class="projects-feedback" role="status" aria-live="polite" hidden><p id="achievement-empty-message"></p></div>
+</section>
+<section id="achievement-grid" class="showcase showcase--projects" aria-label="Achievements" data-showcase>
     <p class="showcase-hint">Hover to pause <span aria-hidden="true">&middot;</span> Swipe to explore</p>
     <div class="showcase-viewport" tabindex="0" aria-label="Achievement cards, scroll horizontally">
     <div class="showcase-track">
-    <div class="showcase-group">
+    <div id="achievement-cards" class="showcase-group">
     {% for achievement in achievement_list %}
-        <article class="showcase-card">
-            <h2 class="showcase-title">{{ achievement.title }}</h2>
-            {% if achievement.thumbnail %}
-                <img class="showcase-image" src="{{ achievement.thumbnail }}" alt="{{ achievement.title }}" loading="lazy">
+        <article class="showcase-card" data-achievement-id="{{ achievement.id }}">
+            <h2 class="showcase-title"><a class="project-title-link" href="{% url 'main:achievement_detail' achievement.id %}">{{ achievement.title }}</a></h2>
+            {% if achievement.safe_thumbnail %}
+                <img class="showcase-image" src="{{ achievement.safe_thumbnail }}" alt="{{ achievement.title }}" loading="lazy">
             {% else %}
                 <span class="showcase-monogram" aria-hidden="true">{{ achievement.title|first }}</span>
             {% endif %}
+            <div class="project-card-actions">
+                {% if can_edit_achievements %}<a class="button button-secondary" href="{% url 'main:update_achievement' achievement.id %}">Edit Prestasi</a>{% endif %}
+                {% if user.is_authenticated %}
+                <form method="post" action="{% url 'main:toggle_achievement_star' achievement.id %}" class="star-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="button button-star{% if achievement.is_starred %} is-starred{% endif %}" aria-pressed="{{ achievement.is_starred|yesno:'true,false' }}">&#9733; {% if achievement.is_starred %}Unstar{% else %}Star{% endif %} <span class="star-count" aria-label="{{ achievement.star_count }} star">{{ achievement.star_count }}</span></button>
+                </form>
+                {% else %}
+                <a class="button button-star" href="{% url 'main:login' %}?next={{ request.get_full_path|urlencode }}">&#9733; Login untuk star <span class="star-count">{{ achievement.star_count }}</span></a>
+                {% endif %}
+                {% if can_create_achievements %}<a class="button button-danger" href="{% url 'main:achievement_detail' achievement.id %}">Hapus Prestasi</a>{% endif %}
+            </div>
             <p class="showcase-description">{{ achievement.description }}</p>
             {% if achievement.award %}
                 <div class="showcase-caption">
@@ -44,4 +85,47 @@
     </div>
 </section>
 </main>
+{% if user.is_authenticated %}<div id="achievement-csrf-token" hidden>{% csrf_token %}</div>{% endif %}
+{% if can_edit_achievements %}
+<div id="achievement-modal" class="project-form-modal" popover="auto" role="dialog" aria-modal="true" aria-labelledby="achievement-modal-title">
+    <button type="button" class="project-form-modal__backdrop" popovertarget="achievement-modal" popovertargetaction="hide" aria-label="Tutup formulir prestasi" tabindex="-1"></button>
+    <div class="project-form-modal__content">
+        <button type="button" class="project-form-modal__close" popovertarget="achievement-modal" popovertargetaction="hide" aria-label="Tutup formulir prestasi">&times;</button>
+        <h2 id="achievement-modal-title">Tambah Prestasi</h2>
+        <p class="project-form-modal__intro">Kolom bertanda * wajib diisi.</p>
+        <form id="achievement-form" method="post" action="{% url 'main:create_achievement' %}" class="project-form">
+            {% csrf_token %}
+            <div id="achievement-form-errors" class="form-error" aria-live="polite" hidden></div>
+            {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+                {{ field }}
+                {% if field.help_text %}<p class="form-help" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>{% endif %}
+                <div id="{{ field.auto_id }}_error" class="form-error" data-field-errors="{{ field.name }}" aria-live="polite" hidden></div>
+            </div>
+            {% endfor %}
+            <div class="project-form-modal__actions">
+                <button type="button" class="button button-secondary" popovertarget="achievement-modal" popovertargetaction="hide">Batal</button>
+                <button type="submit" class="button">Simpan Prestasi</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% if can_create_achievements %}
+<div id="delete-achievement-modal" class="project-delete-modal" popover="auto" role="dialog" aria-modal="true" aria-labelledby="delete-achievement-title">
+    <button type="button" class="project-delete-modal__backdrop" popovertarget="delete-achievement-modal" popovertargetaction="hide" aria-label="Tutup konfirmasi hapus" tabindex="-1"></button>
+    <div class="project-delete-modal__content">
+        <button type="button" class="project-delete-modal__close" popovertarget="delete-achievement-modal" popovertargetaction="hide" aria-label="Tutup konfirmasi hapus">&times;</button>
+        <h2 id="delete-achievement-title">Hapus Prestasi?</h2>
+        <p>Apakah Anda yakin ingin menghapus <strong id="delete-achievement-name"></strong>?</p>
+        <div id="achievement-delete-error" class="form-error" role="alert" hidden></div>
+        <form id="delete-achievement-form" method="post" class="project-delete-modal__actions">
+            {% csrf_token %}
+            <button type="button" class="button button-secondary" popovertarget="delete-achievement-modal" popovertargetaction="hide" autofocus>Batal</button>
+            <button type="submit" class="button button-danger">Ya, Hapus</button>
+        </form>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

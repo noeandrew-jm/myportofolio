@@ -12,9 +12,13 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from main.forms import ProjectForm
+from main.achievement_queries import achievements_with_stars
+from main.achievement_urls import safe_achievement_thumbnail
+from main.forms import AchievementForm, ProjectForm
 from main.models import Achievement, Experience, Project
-from main.permissions import can_create_projects, can_edit_projects
+from main.permissions import (
+    can_create_achievements, can_create_projects, can_edit_achievements, can_edit_projects,
+)
 from main.project_queries import PUBLIC_PROJECT_FIELDS, public_projects, with_star_status
 from main.project_urls import safe_project_url
 
@@ -57,13 +61,93 @@ def show_experience(request):
     return render(request, "experience.html", context)
 
 
+@require_GET
 def show_achievements(request):
+    title_query = request.GET.get("title", "").strip()
+    achievements = achievements_with_stars(request.user, title_query)
+    for achievement in achievements:
+        achievement.safe_thumbnail = safe_achievement_thumbnail(achievement.thumbnail)
     context = {
         "name": "Noe Andrew",
         "active_page": "achievements",
-        "achievement_list": Achievement.objects.all(),
+        "achievement_list": achievements,
+        "form": AchievementForm(),
+        "title_query": title_query,
+        "can_create_achievements": can_create_achievements(request.user),
+        "can_edit_achievements": can_edit_achievements(request.user),
     }
     return render(request, "achievements.html", context)
+
+
+@require_GET
+def achievement_detail(request, achievement_id):
+    achievement = get_object_or_404(achievements_with_stars(request.user), pk=achievement_id)
+    return render(request, "achievement_detail.html", {
+        "name": "Noe Andrew", "active_page": "achievements",
+        "achievement": achievement,
+        "thumbnail": safe_achievement_thumbnail(achievement.thumbnail),
+        "can_create_achievements": can_create_achievements(request.user),
+        "can_edit_achievements": can_edit_achievements(request.user),
+    })
+
+
+@login_required(login_url="main:login")
+@require_http_methods(["GET", "POST"])
+def create_achievement(request):
+    if not can_create_achievements(request.user):
+        raise PermissionDenied
+    form = AchievementForm(request.POST if request.method == "POST" else None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Prestasi baru berhasil ditambahkan!")
+        return redirect("main:show_achievements")
+    return render(request, "achievement_form.html", {
+        "name": "Noe Andrew", "active_page": "achievements", "form": form,
+        "is_update": False, "submit_label": "Tambah Prestasi",
+    })
+
+
+@login_required(login_url="main:login")
+@require_http_methods(["GET", "POST"])
+def update_achievement(request, achievement_id):
+    if not can_edit_achievements(request.user):
+        raise PermissionDenied
+    achievement = get_object_or_404(Achievement, pk=achievement_id)
+    form = AchievementForm(
+        request.POST if request.method == "POST" else None, instance=achievement,
+    )
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Prestasi berhasil diperbarui!")
+        return redirect("main:achievement_detail", achievement_id=achievement.pk)
+    return render(request, "achievement_form.html", {
+        "name": "Noe Andrew", "active_page": "achievements", "form": form,
+        "achievement": achievement, "is_update": True, "submit_label": "Simpan Perubahan",
+    })
+
+
+@login_required(login_url="main:login")
+@require_POST
+def delete_achievement(request, achievement_id):
+    if not can_create_achievements(request.user):
+        raise PermissionDenied
+    get_object_or_404(Achievement, pk=achievement_id).delete()
+    messages.success(request, "Prestasi berhasil dihapus!")
+    return redirect("main:show_achievements")
+
+
+@login_required(login_url="main:login")
+@require_POST
+def toggle_achievement_star(request, achievement_id):
+    with transaction.atomic():
+        achievement = get_object_or_404(
+            Achievement.objects.select_for_update(), pk=achievement_id,
+        )
+        if achievement.starred_by.filter(pk=request.user.pk).exists():
+            achievement.starred_by.remove(request.user)
+        else:
+            achievement.starred_by.add(request.user)
+    return redirect(safe_next_url(request, reverse("main:show_achievements")))
 
 
 @require_GET

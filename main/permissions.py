@@ -1,4 +1,4 @@
-"""Project roles shared by the server checks and template controls."""
+"""Portfolio roles shared by API checks, classic views, and template controls."""
 
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
@@ -15,6 +15,14 @@ def can_edit_projects(user):
     )
 
 
+def can_create_achievements(user):
+    return can_create_projects(user)
+
+
+def can_edit_achievements(user):
+    return can_edit_projects(user)
+
+
 class IsPortfolioOwnerOrReadOnly(BasePermission):
     """Owner-only write policy from the tutorial's introductory example."""
 
@@ -25,9 +33,9 @@ class IsPortfolioOwnerOrReadOnly(BasePermission):
 
 
 class IsPortfolioOwnerOrEditorOrReadOnly(BasePermission):
-    """Preserve the existing Projects assignment's Editor update permission."""
+    """Public reads, owner CRUD, and Editor updates for portfolio entries."""
 
-    message = "Only the owner can create/delete projects; Editors may update them."
+    message = "Only the owner can create/delete entries; Editors may update them."
 
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:

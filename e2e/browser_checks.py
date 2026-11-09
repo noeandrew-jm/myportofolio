@@ -19,7 +19,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from main.models import Project
+from main.models import Achievement, Project
 
 
 class AuthenticationBrowserTests(StaticLiveServerTestCase):
@@ -131,6 +131,113 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                 return response;
             };
         """)
+
+    def wait_for_achievement_titles(self, expected):
+        self.wait.until(lambda driver: driver.execute_script("""
+            const grid = document.getElementById('achievement-grid');
+            if (!grid || grid.hidden || grid.getAttribute('aria-busy') === 'true') return null;
+            const cards = [...document.querySelectorAll('#achievement-cards > [data-achievement-id]')];
+            return cards.map(card => card.querySelector('.project-title-link').textContent.trim());
+        """) == expected)
+
+    def fill_achievement(self, **values):
+        for name, value in values.items():
+            field = self.wait.until(EC.visibility_of_element_located(
+                (By.CSS_SELECTOR, f'#achievement-form [name="{name}"]'),
+            ))
+            field.clear()
+            field.send_keys(str(value))
+
+    def test_achievement_roles_star_and_editor_api_update(self):
+        Achievement.objects.all().delete()
+        achievement = Achievement.objects.create(title="Existing award", description="Original description")
+        editor = get_user_model().objects.create_user(username="achievement_editor", password=self.user_password)
+        editor.groups.add(Group.objects.get_or_create(name="Editor")[0])
+        for username, password, can_edit, can_manage in (
+            (None, None, False, False),
+            ("burhan_test", self.user_password, False, False),
+            (editor.username, self.user_password, True, False),
+            ("admin_test", self.admin_password, True, True),
+        ):
+            with self.subTest(username=username):
+                self.driver.delete_all_cookies()
+                if username:
+                    self.open_page("login")
+                    self.submit_login(username, password)
+                    # Returning members also need a token for the AJAX star action.
+                    self.driver.delete_cookie(settings.CSRF_COOKIE_NAME)
+                self.open_page("show_achievements")
+                achievement.refresh_from_db()
+                self.wait_for_achievement_titles([achievement.title])
+                self.assertEqual(bool(self.driver.find_elements(By.CSS_SELECTOR, "[data-create-achievement]")), can_manage)
+                self.assertEqual(bool(self.driver.find_elements(By.CSS_SELECTOR, "#achievement-cards [data-edit-achievement]")), can_edit)
+                self.assertEqual(bool(self.driver.find_elements(By.CSS_SELECTOR, "#achievement-cards [data-delete-achievement]")), can_manage)
+                self.assertEqual(bool(self.driver.find_elements(By.CSS_SELECTOR, "#achievement-cards .star-form")), bool(username))
+                self.track_project_mutations()
+                if username:
+                    star_selector = "#achievement-cards > .showcase-card .star-form button"
+                    self.click(star_selector)
+                    self.wait.until(lambda driver: driver.execute_script(
+                        "return document.querySelector(arguments[0])?.getAttribute('aria-pressed') === 'true';", star_selector,
+                    ))
+                    self.assertTrue(achievement.starred_by.filter(username=username).exists())
+                    self.click(star_selector)
+                    self.wait.until(lambda driver: driver.execute_script(
+                        "return document.querySelector(arguments[0])?.getAttribute('aria-pressed') === 'false';", star_selector,
+                    ))
+                    self.assertFalse(achievement.starred_by.filter(username=username).exists())
+                if username == editor.username:
+                    self.click("#achievement-cards [data-edit-achievement]")
+                    self.fill_achievement(title="<b>Editor award</b>", description="Edited description")
+                    self.click("#achievement-form button[type='submit']")
+                    self.wait_for_achievement_titles(["Editor award"])
+                    achievement.refresh_from_db()
+                    self.assertEqual(achievement.title, "Editor award")
+                    self.assertEqual(achievement.description, "Edited description")
+                    writes = self.driver.execute_script("return window.projectMutations;")
+                    self.assertIn(("PATCH", 200), [(item["method"], item["status"]) for item in writes])
+                self.assert_same_document()
+
+    def test_achievement_owner_crud_validation_search_and_legacy_xss(self):
+        Achievement.objects.all().delete()
+        legacy = Achievement.objects.create(
+            title="Legacy award", description='<img src=x onerror="window.achievementXss=true">',
+            thumbnail="javascript:alert(1)",
+        )
+        self.open_page("login")
+        self.submit_login("admin_test", self.admin_password)
+        self.open_page("show_achievements")
+        self.wait_for_achievement_titles([legacy.title])
+        self.assertFalse(self.driver.find_elements(By.CSS_SELECTOR, "#achievement-cards [onerror], #achievement-cards img[src^='javascript:']"))
+        self.assertIsNone(self.driver.execute_script("return window.achievementXss;"))
+        self.track_project_mutations()
+        self.click("[data-create-achievement]")
+        self.fill_achievement(title="<b></b>", description="Achievement from API", award="Gold", display_order=3)
+        self.click("#achievement-form button[type='submit']")
+        self.wait.until(lambda driver: driver.find_element(By.CSS_SELECTOR, '#achievement-form [name="title"]').get_attribute("aria-invalid") == "true")
+        self.assertEqual(self.driver.find_element(By.CSS_SELECTOR, '#achievement-form [name="description"]').get_attribute("value"), "Achievement from API")
+        self.assertEqual(Achievement.objects.count(), 1)
+        self.fill_achievement(title="<b>New API award</b>", thumbnail="/static/image/PKM.jpeg")
+        self.click("#achievement-form button[type='submit']")
+        self.wait_for_achievement_titles(["Legacy award", "New API award"])
+        created = Achievement.objects.get(title="New API award")
+        self.assertEqual(created.thumbnail, "/static/image/PKM.jpeg")
+        self.driver.execute_script("""
+            const search = document.querySelector('#achievement-search-form input[name="title"]');
+            search.value = '  new api  ';
+            search.dispatchEvent(new Event('input', {bubbles: true}));
+        """)
+        self.wait_for_achievement_titles(["New API award"])
+        self.click("#achievement-cards [data-delete-achievement]")
+        self.assertTrue(Achievement.objects.filter(pk=created.pk).exists())
+        self.click("#delete-achievement-form button[type='submit']")
+        self.wait.until(EC.visibility_of_element_located((By.ID, "achievement-empty")))
+        self.assertFalse(Achievement.objects.filter(pk=created.pk).exists())
+        self.assertTrue(Achievement.objects.filter(pk=legacy.pk).exists())
+        self.assert_same_document()
+        writes = self.driver.execute_script("return window.projectMutations;")
+        self.assertEqual([(item["method"], item["status"]) for item in writes], [("POST", 400), ("POST", 201), ("DELETE", 204)])
+        self.assertTrue(all(item["headers"].get("x-csrftoken") for item in writes))
 
     def test_public_reads_controls_and_toast_for_all_roles(self):
         Project.objects.all().delete()
