@@ -89,6 +89,15 @@ class AchievementAPITests(AchievementFixtures, APITestCase):
         Achievement.objects.all().delete()
         self.assertEqual(self.client.get(self.list_url).data, [])
 
+    def test_browsable_api_can_display_public_list_and_detail(self):
+        for url in (self.list_url, self.detail_url):
+            with self.subTest(url=url):
+                response = self.client.get(url, HTTP_ACCEPT="text/html")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response["Content-Type"].split(";")[0], "text/html")
+                self.assertTemplateUsed(response, "rest_framework/api.html")
+                self.assertContains(response, self.achievement.title)
+
     def test_guest_and_member_cannot_create_update_or_delete(self):
         for user in (None, self.member):
             self.client.force_authenticate(user=user)
@@ -118,9 +127,15 @@ class AchievementAPITests(AchievementFixtures, APITestCase):
         response = self.client.put(self.detail_url, achievement_data(title="Editor replacement"), format="json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["title"], "Editor replacement")
-        self.assertEqual(self.client.post(self.list_url, achievement_data(), format="json").status_code, 403)
-        self.assertEqual(self.client.delete(self.detail_url).status_code, 403)
-        self.assertEqual(Achievement.objects.count(), 1)
+        saved_records = list(Achievement.objects.order_by("pk").values())
+        for method, url, data in (
+            ("post", self.list_url, achievement_data(title="Forbidden new achievement")),
+            ("delete", self.detail_url, {}),
+        ):
+            with self.subTest(forbidden_method=method):
+                response = getattr(self.client, method)(url, data, format="json")
+                self.assertEqual(response.status_code, 403)
+                self.assertEqual(list(Achievement.objects.order_by("pk").values()), saved_records)
         self.assertIs(self.client.post(self.star_url).data["is_starred"], True)
 
     def test_owner_can_create_replace_patch_and_delete(self):
@@ -172,6 +187,34 @@ class AchievementAPITests(AchievementFixtures, APITestCase):
                         self.assertNotIn(field, record)
                     for private_value in (self.member.email, self.member.password, self.member.username):
                         self.assertNotIn(private_value, response.content.decode())
+
+    def test_session_star_ignores_forged_identity_and_preserves_other_users_stars(self):
+        self.achievement.starred_by.add(self.owner, self.editor)
+        client = self.session_client(self.member)
+        client.get(reverse("main:show_achievements"))
+        token = client.cookies[settings.CSRF_COOKIE_NAME].value
+        url = f"{self.star_url}?user_id={self.owner.pk}"
+        forged_identity = {
+            "user_id": self.owner.pk,
+            "user": self.editor.pk,
+            "starred_by": [],
+        }
+
+        for is_starred, expected_users in (
+            (True, {self.owner.pk, self.editor.pk, self.member.pk}),
+            (False, {self.owner.pk, self.editor.pk}),
+        ):
+            with self.subTest(is_starred=is_starred):
+                response = client.post(
+                    url, forged_identity, format="json", HTTP_X_CSRFTOKEN=token,
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertIs(response.data["is_starred"], is_starred)
+                self.assertEqual(response.data["star_count"], len(expected_users))
+                self.assertEqual(
+                    set(self.achievement.starred_by.values_list("pk", flat=True)),
+                    expected_users,
+                )
 
     def test_id_and_computed_or_account_fields_cannot_be_written(self):
         self.client.force_authenticate(user=self.owner)
@@ -317,6 +360,7 @@ class AchievementAPITests(AchievementFixtures, APITestCase):
 
     def test_real_session_writes_require_csrf_and_valid_origin(self):
         client = self.session_client(self.owner)
+        saved_records = list(Achievement.objects.order_by("pk").values())
         actions = (
             ("post", self.list_url), ("put", self.detail_url),
             ("patch", self.detail_url), ("delete", self.detail_url), ("post", self.star_url),
@@ -326,6 +370,8 @@ class AchievementAPITests(AchievementFixtures, APITestCase):
                 response = getattr(client, method)(url, achievement_data(), format="json")
                 self.assertEqual(response.status_code, 403)
                 self.assertIn("CSRF", str(response.data["detail"]))
+                self.assertEqual(list(Achievement.objects.order_by("pk").values()), saved_records)
+                self.assertEqual(self.achievement.starred_by.count(), 0)
         client.get(reverse("main:show_achievements"))
         token = client.cookies[settings.CSRF_COOKIE_NAME].value
         for headers in (
@@ -334,6 +380,7 @@ class AchievementAPITests(AchievementFixtures, APITestCase):
         ):
             response = client.post(self.list_url, achievement_data(), format="json", **headers)
             self.assertEqual(response.status_code, 403)
+            self.assertEqual(list(Achievement.objects.order_by("pk").values()), saved_records)
         self.assertEqual(Achievement.objects.count(), 1)
         self.assertEqual(self.achievement.starred_by.count(), 0)
 

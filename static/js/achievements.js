@@ -14,7 +14,7 @@
     const deleteForm = byId('delete-achievement-form');
     const fields = ['title', 'description', 'award', 'thumbnail', 'display_order'];
     const placeholder = '00000000-0000-0000-0000-000000000000';
-    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const api = window.PortfolioAPI;
     const pending = new Set();
     let records = new Map();
     let controller, timer, composing = false, submitting = false, deleting = false;
@@ -23,6 +23,7 @@
     const element = (tag, className, text) => {
         const node = document.createElement(tag);
         node.className = className;
+        // API strings include legacy database values: never parse them as HTML.
         if (text !== undefined) node.textContent = text;
         return node;
     };
@@ -54,7 +55,7 @@
         });
     }
     function buildCard(record) {
-        if (!record || !uuid.test(record.id)) throw new Error('Data prestasi tidak valid.');
+        if (!api.hasResourceId(record)) throw new Error('Data prestasi tidak valid.');
         const card = element('article', 'showcase-card');
         card.dataset.achievementId = record.id;
         const title = element('h2', 'showcase-title');
@@ -119,6 +120,8 @@
             const response = await fetch(url, {credentials: 'same-origin', cache: 'no-store', headers: {Accept: 'application/json'}, signal: current.signal});
             if (!response.ok) throw new Error(`Gagal memuat prestasi (status ${response.status}). Silakan coba lagi.`);
             const data = await response.json();
+            // Abort saves network work; the identity check also rejects an old
+            // response that finished parsing just as a newer search started.
             if (current.signal.aborted || controller !== current) return;
             if (!Array.isArray(data)) throw new Error('Data prestasi dari server tidak valid.');
             const fragment = document.createDocumentFragment();
@@ -135,6 +138,7 @@
         }
     }
     function schedule() {
+        // Invalidate old results when typing starts, before the debounce fires.
         clearTimeout(timer); controller?.abort(); reset.hidden = !searchInput.value.trim();
         if (!composing) timer = setTimeout(load, 300);
     }
@@ -145,22 +149,16 @@
     reset.addEventListener('click', () => { searchInput.value = ''; searchInput.focus(); load(); });
     byId('retry-achievements').addEventListener('click', load);
 
-    async function write(url, method, payload, expected = 200) {
-        const token = byId('achievement-csrf-token')?.querySelector('input').value || '';
-        const response = await fetch(url, {
-            method, credentials: 'same-origin',
-            headers: {Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRFToken': token},
-            body: payload === undefined ? undefined : JSON.stringify(payload),
-        }).catch(() => { throw new Error('Tidak dapat terhubung ke server. Periksa daftar prestasi sebelum mencoba kembali.'); });
-        if (method === 'DELETE' && response.status === 204) return;
-        const result = await response.json().catch(() => null);
-        if (!response.ok) {
-            const messages = result && typeof result === 'object' ? Object.values(result).flat().filter(value => typeof value === 'string') : [];
-            const error = new Error(messages.join(' ') || `Permintaan gagal (status ${response.status}).`);
-            error.payload = result; throw error;
-        }
-        if (method === 'DELETE' || response.status !== expected || !result || !uuid.test(result.id)) throw new Error('Respons server tidak valid. Periksa daftar prestasi sebelum mencoba kembali.');
-        return result;
+    function write(url, method, payload, expectedStatus = 200) {
+        return api.write(url, {
+            method, payload, expectedStatus,
+            csrfToken: byId('achievement-csrf-token')?.querySelector('input').value || '',
+            messages: {
+                network: 'Tidak dapat terhubung ke server. Periksa daftar prestasi sebelum mencoba kembali.',
+                invalid: 'Respons server tidak valid. Periksa daftar prestasi sebelum mencoba kembali.',
+                http: status => `Permintaan gagal (status ${status}).`,
+            },
+        });
     }
     cards.addEventListener('submit', async event => {
         const starForm = event.target.closest('[data-star-achievement]');
@@ -237,7 +235,7 @@
     deleteForm?.addEventListener('submit', async event => {
         event.preventDefault();
         const id = deleteForm.dataset.achievementId;
-        if (deleting || !uuid.test(id) || pending.has(id)) return;
+        if (deleting || !api.hasResourceId({id}) || pending.has(id)) return;
         deleting = true; pending.add(id); setBusy(id, true);
         const submit = deleteForm.querySelector('[type="submit"]'); submit.disabled = true;
         byId('achievement-delete-error').hidden = true;

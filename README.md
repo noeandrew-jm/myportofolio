@@ -29,3 +29,52 @@ Kelas : PBP C
 2. `fetch()` mengembalikan `Promise`, jadi responsnya tidak langsung tersedia. Saya memakai `await fetch(...)` untuk menunggu objek `Response` sebelum memeriksa statusnya. Setelah itu, `await response.json()` menunggu isi respons dibaca dan diubah menjadi data JavaScript. Dua tahap ini berbeda: respons sudah bisa tersedia saat seluruh isinya masih dalam proses diterima. `await` menunda kelanjutan fungsi `async` tersebut, sementara halaman tetap bisa menerima interaksi. Jika saya menulis `const response = fetch(url)` tanpa `await`, request tetap dikirim, tetapi `response` berisi `Promise`. Memanggil `response.json()` langsung akan menghasilkan error karena metode itu milik `Response`. Tanpa `await`, hasilnya masih bisa diproses menggunakan `.then()`. Kode saya juga memeriksa `response.ok`, karena status HTTP seperti 400 atau 500 tidak otomatis membuat `fetch()` menolak Promise. Rujukan: [MDN: Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) dan [MDN: await](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/await).
 
 3. Cross-Site Scripting (XSS) adalah serangan dengan menyisipkan kode berbahaya ke data yang ditampilkan website, sehingga browser pengguna menjalankannya dalam konteks website tersebut. Penyerang bisa membaca data di halaman atau menjalankan aksi dengan sesi korban. Misalnya, judul proyek berisi `<img src=x onerror=alert('XSS')>` bisa menjalankan JavaScript jika dimasukkan lewat `innerHTML` tanpa perlindungan. Template Django secara default melakukan autoescaping pada variabel yang ditampilkan sebagai HTML, sehingga karakter seperti `<` dan `>` ditampilkan sebagai teks. Data JSON yang dimasukkan ke halaman lewat JavaScript tidak melewati proses itu, jadi perlindungannya harus diterapkan saat memperbarui halaman. Risiko XSS bergantung pada cara data dimasukkan ke DOM. Di proyek saya, judul, deskripsi, dan pesan memakai `textContent` agar tetap menjadi teks; URL dibatasi ke HTTP/HTTPS, dan input form dibersihkan dengan `strip_tags`. Menghapus tag saja belum cukup: data tetap harus ditampilkan dengan aman. Template Django juga perlu dijaga agar data pengguna tidak sembarangan diberi filter `safe`. Rujukan: [Django: perlindungan XSS](https://docs.djangoproject.com/en/5.2/topics/security/#cross-site-scripting-xss-protection) dan [MDN: innerHTML](https://developer.mozilla.org/en-US/docs/Web/API/Element/innerHTML).
+
+
+# Tugas 6
+1. Pengertian REST, RESTful API, serta perbedaan PUT dan PATCH
+REST (Representational State Transfer) adalah suatu pendekatan arsitektur dalam pembuatan API yang mengatur bagaimana client dan server berkomunikasi melalui HTTP. REST menggunakan resource sebagai pusat komunikasi, di mana setiap resource memiliki URL atau endpoint tersendiri dan dapat diakses menggunakan HTTP method seperti GET, POST, PUT, PATCH, dan DELETE.
+
+API yang mengembalikan JSON saja belum tentu disebut RESTful karena JSON hanya merupakan format pertukaran data. Sebuah API juga perlu menerapkan prinsip REST, seperti penggunaan resource yang jelas, HTTP method sesuai fungsinya, serta penggunaan status code HTTP yang tepat. Jadi, RESTful API tidak hanya dilihat dari format responsnya, tetapi juga dari cara API mengatur komunikasi antara client dan server.
+
+Perbedaan PUT dan PATCH terletak pada cara keduanya memperbarui data:
+- PUT digunakan untuk memperbarui keseluruhan data suatu resource. Biasanya, client mengirimkan seluruh field yang diperlukan.
+- PATCH digunakan untuk memperbarui sebagian data saja. Client cukup mengirimkan field yang ingin diubah tanpa harus mengirimkan seluruh data.
+Contohnya, ketika ingin mengubah data skill yang memiliki judul, deskripsi, dan kategori:
+- Menggunakan PUT: client mengirimkan judul, deskripsi, dan kategori sekaligus.
+- Menggunakan PATCH: client hanya mengirimkan judul jika hanya bagian judul yang ingin diubah.
+2. Peran Serializer pada Django REST Framework
+Serializer pada Django REST Framework berfungsi untuk mengubah data dari model Django menjadi format yang dapat dikirimkan melalui API, seperti JSON. Serializer juga melakukan proses sebaliknya, yaitu menerima data dari client, memvalidasi data tersebut, kemudian mengubahnya menjadi data yang dapat disimpan ke database.
+
+Dibandingkan merakit dictionary secara manual menggunakan JsonResponse seperti pada Tutorial 05, serializer memiliki beberapa keuntungan:
+1. Validasi data: Serializer dapat memeriksa apakah data yang dikirimkan sudah sesuai dengan ketentuan sebelum disimpan.
+2. Konversi data otomatis: Serializer membantu mengubah objek model Django menjadi data yang dapat dikirimkan dalam format JSON.
+3. Mengurangi kode berulang: Kita tidak perlu menyusun dictionary secara manual untuk setiap field.
+4. Mengatur field yang dapat diubah: Kita dapat menentukan field yang hanya boleh dibaca (read-only) sehingga client tidak bisa sembarangan mengubahnya.
+Dengan demikian, penggunaan serializer membuat pengelolaan data API menjadi lebih terstruktur, konsisten, dan mudah dikembangkan.
+3. Perbedaan Autentikasi dan Otorisasi pada Django REST Framework
+Autentikasi (authentication) adalah proses untuk memastikan identitas pengguna yang sedang mengakses API. Contohnya, ketika pengguna login menggunakan username dan password, sistem akan memeriksa apakah identitas tersebut benar.
+
+Sementara itu, otorisasi (authorization) adalah proses untuk menentukan tindakan apa saja yang boleh dilakukan oleh pengguna setelah identitasnya diketahui. Misalnya, pengguna biasa hanya boleh melihat data, sedangkan pemilik portfolio memiliki izin untuk menambah, mengubah, dan menghapus data.
+
+Pada Django REST Framework, autentikasi dapat diatur menggunakan authentication class, sedangkan hak akses dapat diatur menggunakan permission class.
+
+Pemeriksaan hak akses harus dilakukan di server menggunakan permission class karena menyembunyikan tombol pada template hanya memengaruhi tampilan antarmuka. Pengguna masih dapat mengakses endpoint secara langsung melalui browser, Postman, atau cara lainnya. Dengan permission class, server tetap memeriksa apakah pengguna memiliki izin sebelum menjalankan suatu tindakan. Hal ini membuat keamanan API tidak hanya bergantung pada tampilan frontend.
+4. Pentingnya CSRF pada SessionAuthentication dan Pengujian dengan force_authenticate
+CSRF (Cross-Site Request Forgery) merupakan jenis serangan yang memanfaatkan sesi login pengguna untuk mengirimkan permintaan tanpa sepengetahuan pengguna tersebut.
+
+Pada Django REST Framework yang menggunakan SessionAuthentication, identitas pengguna dikenali melalui session cookie yang disimpan oleh browser. Browser dapat mengirimkan cookie tersebut secara otomatis ketika mengakses server. Oleh karena itu, permintaan yang mengubah data, seperti POST, PUT, PATCH, dan DELETE, tetap memerlukan token CSRF untuk memastikan bahwa permintaan tersebut benar-benar berasal dari sumber yang dipercaya.
+
+Token CSRF berfungsi sebagai lapisan perlindungan tambahan agar server dapat memeriksa keabsahan permintaan sebelum memproses perubahan data.
+
+Sementara itu, force_authenticate pada pengujian DRF digunakan untuk membuat pengguna seolah-olah sudah terautentikasi tanpa melalui proses autentikasi session yang sebenarnya. Karena mekanisme ini melewati proses autentikasi normal, pengujian menggunakan force_authenticate tidak cukup untuk membuktikan bahwa perlindungan CSRF berjalan dengan baik.
+
+Untuk menguji CSRF, kita perlu menggunakan APIClient dengan enforce_csrf_checks=True. Dengan cara ini, kita dapat memastikan bahwa permintaan tanpa token CSRF ditolak oleh server, sedangkan permintaan dengan token CSRF yang valid dapat diproses.
+
+AI Disclosure
+1. Tools
+GPT-6 Luna (VS Code)
+2. Prompt Strategy
+Merancang Flow Tech Stack dan integrasi webb
+Penyusunan Tugas Refleksi
+3. Bug fixing: GPT-6 Luna (dalam session VS Code)

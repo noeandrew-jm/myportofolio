@@ -1,10 +1,15 @@
+"""Portfolio HTML views and compatibility endpoints used by earlier assignments.
+
+Forms validate writes, permission helpers guard every mutation, and query/service
+modules are shared with DRF so the classic interface cannot bypass API rules.
+"""
+
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core import serializers
 from django.core.exceptions import PermissionDenied
-from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -21,6 +26,7 @@ from main.permissions import (
 )
 from main.project_queries import PUBLIC_PROJECT_FIELDS, public_projects, with_star_status
 from main.project_urls import safe_project_url
+from main.services import toggle_content_star
 
 
 def safe_next_url(request, fallback):
@@ -63,6 +69,7 @@ def show_experience(request):
 
 @require_GET
 def show_achievements(request):
+    """Render accessible initial content before JavaScript refreshes it via API."""
     title_query = request.GET.get("title", "").strip()
     achievements = achievements_with_stars(request.user, title_query)
     for achievement in achievements:
@@ -139,19 +146,13 @@ def delete_achievement(request, achievement_id):
 @login_required(login_url="main:login")
 @require_POST
 def toggle_achievement_star(request, achievement_id):
-    with transaction.atomic():
-        achievement = get_object_or_404(
-            Achievement.objects.select_for_update(), pk=achievement_id,
-        )
-        if achievement.starred_by.filter(pk=request.user.pk).exists():
-            achievement.starred_by.remove(request.user)
-        else:
-            achievement.starred_by.add(request.user)
+    toggle_content_star(Achievement, achievement_id, request.user)
     return redirect(safe_next_url(request, reverse("main:show_achievements")))
 
 
 @require_GET
 def get_projects_json(request):
+    """Preserve the Tutorial 05 JSON shape without exposing account relations."""
     projects = with_star_status(
         public_projects(request.GET.get("title", "")), request.user,
     )
@@ -187,6 +188,7 @@ def get_projects_xml(request):
 
 @require_GET
 def show_projects(request):
+    """Serve the page shell; the browser loads and filters records through DRF."""
     context = {
         "name": "Noe Andrew",
         "active_page": "projects",
@@ -336,13 +338,5 @@ def logout_user(request):
 @login_required(login_url="main:login")
 @require_POST
 def toggle_star(request, project_id):
-    # Serialize concurrent toggles on databases supporting row locks. The M2M
-    # table also enforces one membership per (project, user) at database level.
-    with transaction.atomic():
-        project = get_object_or_404(Project.objects.select_for_update(), pk=project_id)
-        if project.starred_by.filter(pk=request.user.pk).exists():
-            project.starred_by.remove(request.user)
-        else:
-            project.starred_by.add(request.user)
-
+    toggle_content_star(Project, project_id, request.user)
     return redirect(safe_next_url(request, reverse("main:show_projects")))

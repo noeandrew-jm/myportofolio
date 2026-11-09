@@ -13,7 +13,7 @@
     const projectForm = document.getElementById('project-form');
     const modal = document.getElementById('add-project-modal');
     const placeholderId = '00000000-0000-0000-0000-000000000000';
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const api = window.PortfolioAPI;
     const searchDebounceMs = 300;
     const pendingProjects = new Set();
     let projectsController;
@@ -42,14 +42,8 @@
         }
     }
 
-    function serverMessage(payload) {
-        if (!payload || typeof payload !== 'object') return '';
-        return typeof payload.detail === 'string' ? payload.detail
-            : typeof payload.message === 'string' ? payload.message : '';
-    }
-
     function buildProjectCardElement(project) {
-        if (!project || !uuidPattern.test(project.id)) throw new Error('Invalid project data');
+        if (!api.hasResourceId(project)) throw new Error('Invalid project data');
         const article = cardTemplate.content.firstElementChild.cloneNode(true);
         const route = name => app.dataset[name].replace(placeholderId, project.id);
         const title = String(project.title ?? '');
@@ -131,35 +125,17 @@
         });
     }
 
-    async function writeProject(url, method, payload, token) {
+    function writeProject(url, method, payload, token) {
         const csrfToken = token ?? document.querySelector('#project-csrf-token input').value;
-        const response = await fetch(url, {
-            method,
-            credentials: 'same-origin',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken,
+        return api.write(url, {
+            method, payload, csrfToken,
+            expectedStatus: method === 'POST' && payload !== undefined ? 201 : 200,
+            messages: {
+                network: 'Tidak dapat terhubung ke server. Periksa daftar proyek sebelum mencoba kembali.',
+                invalid: 'Respons server tidak valid. Periksa daftar proyek sebelum mencoba kembali.',
+                http: status => `Terjadi kesalahan (status ${status}). Silakan coba lagi.`,
             },
-            body: payload === undefined ? undefined : JSON.stringify(payload),
-        }).catch(() => {
-            throw new Error('Tidak dapat terhubung ke server. Periksa daftar proyek sebelum mencoba kembali.');
         });
-        if (method === 'DELETE' && response.status === 204) return null;
-        const result = await response.json().catch(() => null);
-        if (!response.ok) {
-            const messages = result && typeof result === 'object'
-                ? Object.values(result).flat().filter(value => typeof value === 'string') : [];
-            const error = new Error(messages.join(' ') || `Terjadi kesalahan (status ${response.status}). Silakan coba lagi.`);
-            error.payload = result;
-            throw error;
-        }
-        const expectedStatus = method === 'POST' && payload !== undefined ? 201 : 200;
-        // A login page or malformed success must never clear unsaved input.
-        if (method === 'DELETE' || response.status !== expectedStatus || !result || !uuidPattern.test(result.id)) {
-            throw new Error('Respons server tidak valid. Periksa daftar proyek sebelum mencoba kembali.');
-        }
-        return result;
     }
 
     grid.addEventListener('submit', async event => {
@@ -212,7 +188,7 @@
             });
             if (!response.ok) {
                 const payload = await response.json().catch(() => null);
-                failureMessage = serverMessage(payload)
+                failureMessage = api.serverMessage(payload)
                     || `Gagal memuat data proyek (status ${response.status}). Silakan coba lagi.`;
                 throw new Error('Project request failed');
             }
@@ -288,7 +264,7 @@
         const messages = [];
         for (const [name, fieldErrors] of Object.entries(errors)) {
             const entries = Array.isArray(fieldErrors) ? fieldErrors : [fieldErrors];
-            const text = entries.map(error => typeof error === 'string' ? error : serverMessage(error))
+            const text = entries.map(error => typeof error === 'string' ? error : api.serverMessage(error))
                 .filter(Boolean).join(' ');
             if (!text) continue;
             messages.push(text);

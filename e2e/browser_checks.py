@@ -196,6 +196,14 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
                     self.assertEqual(achievement.description, "Edited description")
                     writes = self.driver.execute_script("return window.projectMutations;")
                     self.assertIn(("PATCH", 200), [(item["method"], item["status"]) for item in writes])
+                if username:
+                    writes = self.driver.execute_script("return window.projectMutations;")
+                    token = self.driver.find_element(
+                        By.CSS_SELECTOR, '#achievement-csrf-token input[name="csrfmiddlewaretoken"]',
+                    ).get_attribute("value")
+                    self.assertGreaterEqual(len(writes), 2)
+                    self.assertTrue(token)
+                    self.assertTrue(all(item["headers"].get("x-csrftoken") == token for item in writes))
                 self.assert_same_document()
 
     def test_achievement_owner_crud_validation_search_and_legacy_xss(self):
@@ -215,6 +223,11 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         self.fill_achievement(title="<b></b>", description="Achievement from API", award="Gold", display_order=3)
         self.click("#achievement-form button[type='submit']")
         self.wait.until(lambda driver: driver.find_element(By.CSS_SELECTOR, '#achievement-form [name="title"]').get_attribute("aria-invalid") == "true")
+        self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#toast-component.toast-error")))
+        self.assertEqual(self.driver.find_element(By.ID, "toast-title").text, "Gagal menyimpan prestasi")
+        validation_message = self.driver.find_element(By.ID, "achievement-form-errors").text
+        self.assertTrue(validation_message)
+        self.assertEqual(self.driver.find_element(By.ID, "toast-message").text, validation_message)
         self.assertEqual(self.driver.find_element(By.CSS_SELECTOR, '#achievement-form [name="description"]').get_attribute("value"), "Achievement from API")
         self.assertEqual(Achievement.objects.count(), 1)
         self.fill_achievement(title="<b>New API award</b>", thumbnail="/static/image/PKM.jpeg")
@@ -238,6 +251,56 @@ class AuthenticationBrowserTests(StaticLiveServerTestCase):
         writes = self.driver.execute_script("return window.projectMutations;")
         self.assertEqual([(item["method"], item["status"]) for item in writes], [("POST", 400), ("POST", 201), ("DELETE", 204)])
         self.assertTrue(all(item["headers"].get("x-csrftoken") for item in writes))
+
+    def test_achievement_revoked_editor_gets_403_toast_without_losing_input(self):
+        Achievement.objects.all().delete()
+        achievement = Achievement.objects.create(
+            title="Protected award", description="Original content", award="Gold",
+        )
+        editor = get_user_model().objects.create_user(
+            username="revoked_achievement_editor", password=self.user_password,
+        )
+        editor_group = Group.objects.get_or_create(name="Editor")[0]
+        editor.groups.add(editor_group)
+        self.open_page("login")
+        self.submit_login(editor.username, self.user_password)
+        self.open_page("show_achievements")
+        self.wait_for_achievement_titles([achievement.title])
+        self.track_project_mutations()
+        self.click("#achievement-cards [data-edit-achievement]")
+        unsaved_title = "<b>Unsaved replacement</b>"
+        unsaved_description = "Keep this input after permission is denied."
+        self.fill_achievement(title=unsaved_title, description=unsaved_description)
+
+        # The page still has its edit controls, but every API request must check
+        # the current role on the server even after the modal was opened.
+        before = list(Achievement.objects.order_by("pk").values())
+        editor.groups.remove(editor_group)
+        self.click("#achievement-form button[type='submit']")
+        self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#toast-component.toast-error")))
+        self.assertEqual(self.driver.find_element(By.ID, "toast-title").text, "Gagal menyimpan prestasi")
+        error_message = self.driver.find_element(By.ID, "achievement-form-errors").text
+        self.assertIn("Only the owner", error_message)
+        self.assertNotIn("CSRF", error_message)
+        self.assertEqual(self.driver.find_element(By.ID, "toast-message").text, error_message)
+        self.assertTrue(self.driver.execute_script(
+            "return document.getElementById('achievement-modal').matches(':popover-open');",
+        ))
+        for name, value in (("title", unsaved_title), ("description", unsaved_description)):
+            self.assertEqual(self.driver.find_element(
+                By.CSS_SELECTOR, f'#achievement-form [name="{name}"]',
+            ).get_attribute("value"), value)
+        self.assertEqual(list(Achievement.objects.order_by("pk").values()), before)
+        self.assertEqual(achievement.starred_by.count(), 0)
+        self.assert_same_document()
+        writes = self.driver.execute_script("return window.projectMutations;")
+        self.assertEqual([(item["method"], item["status"]) for item in writes], [("PATCH", 403)])
+        self.assertEqual(writes[0]["path"], reverse("api:achievement-detail", args=[achievement.pk]))
+        token = self.driver.find_element(
+            By.CSS_SELECTOR, '#achievement-csrf-token input[name="csrfmiddlewaretoken"]',
+        ).get_attribute("value")
+        self.assertTrue(token)
+        self.assertEqual(writes[0]["headers"].get("x-csrftoken"), token)
 
     def test_public_reads_controls_and_toast_for_all_roles(self):
         Project.objects.all().delete()
