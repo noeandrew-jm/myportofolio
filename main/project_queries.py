@@ -1,6 +1,7 @@
 """Public project data and aggregate stars, without exposing account records."""
 
-from django.db.models import BooleanField, Count, Exists, OuterRef, Value
+from django.contrib.auth import get_user_model
+from django.db.models import BooleanField, Count, Exists, OuterRef, Prefetch, Value
 
 from main.models import Project
 
@@ -12,10 +13,24 @@ PUBLIC_PROJECT_FIELDS = (
 
 
 def public_projects(title_query=""):
+    """Keep search behavior identical for the legacy endpoints and DRF API."""
     projects = Project.objects.all()
-    if title_query.strip():
-        projects = projects.filter(title__icontains=title_query.strip())
+    title_query = title_query.strip()
+    if title_query:
+        projects = projects.filter(title__icontains=title_query)
     return projects
+
+
+def projects_with_stars(title_query=""):
+    """Load the API's public usernames with two queries, independent of list size.
+
+    Project's existing API contract includes ``starred_by_names``. Prefetch only
+    the user ID and username needed by the serializer, keeping email/password
+    fields out of memory and avoiding a query for each project's star relation.
+    """
+    return public_projects(title_query).prefetch_related(Prefetch(
+        "starred_by", queryset=get_user_model().objects.only("id", "username"),
+    )).order_by("title", "id")
 
 
 def with_star_status(projects, user):

@@ -1,10 +1,15 @@
+"""Portfolio HTML views and compatibility endpoints used by earlier assignments.
+
+Forms validate writes, permission helpers guard every mutation, and query/service
+modules are shared with DRF so the classic interface cannot bypass API rules.
+"""
+
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core import serializers
 from django.core.exceptions import PermissionDenied
-from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -12,11 +17,16 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from main.forms import ProjectForm
+from main.achievement_queries import achievements_with_stars
+from main.achievement_urls import safe_achievement_thumbnail
+from main.forms import AchievementForm, ProjectForm
 from main.models import Achievement, Experience, Project
-from main.permissions import can_create_projects, can_edit_projects
+from main.permissions import (
+    can_create_achievements, can_create_projects, can_edit_achievements, can_edit_projects,
+)
 from main.project_queries import PUBLIC_PROJECT_FIELDS, public_projects, with_star_status
 from main.project_urls import safe_project_url
+from main.services import toggle_content_star
 
 
 def safe_next_url(request, fallback):
@@ -57,17 +67,92 @@ def show_experience(request):
     return render(request, "experience.html", context)
 
 
+@require_GET
 def show_achievements(request):
+    """Render accessible initial content before JavaScript refreshes it via API."""
+    title_query = request.GET.get("title", "").strip()
+    achievements = achievements_with_stars(request.user, title_query)
+    for achievement in achievements:
+        achievement.safe_thumbnail = safe_achievement_thumbnail(achievement.thumbnail)
     context = {
         "name": "Noe Andrew",
         "active_page": "achievements",
-        "achievement_list": Achievement.objects.all(),
+        "achievement_list": achievements,
+        "form": AchievementForm(),
+        "title_query": title_query,
+        "can_create_achievements": can_create_achievements(request.user),
+        "can_edit_achievements": can_edit_achievements(request.user),
     }
     return render(request, "achievements.html", context)
 
 
 @require_GET
+def achievement_detail(request, achievement_id):
+    achievement = get_object_or_404(achievements_with_stars(request.user), pk=achievement_id)
+    return render(request, "achievement_detail.html", {
+        "name": "Noe Andrew", "active_page": "achievements",
+        "achievement": achievement,
+        "thumbnail": safe_achievement_thumbnail(achievement.thumbnail),
+        "can_create_achievements": can_create_achievements(request.user),
+        "can_edit_achievements": can_edit_achievements(request.user),
+    })
+
+
+@login_required(login_url="main:login")
+@require_http_methods(["GET", "POST"])
+def create_achievement(request):
+    if not can_create_achievements(request.user):
+        raise PermissionDenied
+    form = AchievementForm(request.POST if request.method == "POST" else None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Prestasi baru berhasil ditambahkan!")
+        return redirect("main:show_achievements")
+    return render(request, "achievement_form.html", {
+        "name": "Noe Andrew", "active_page": "achievements", "form": form,
+        "is_update": False, "submit_label": "Tambah Prestasi",
+    })
+
+
+@login_required(login_url="main:login")
+@require_http_methods(["GET", "POST"])
+def update_achievement(request, achievement_id):
+    if not can_edit_achievements(request.user):
+        raise PermissionDenied
+    achievement = get_object_or_404(Achievement, pk=achievement_id)
+    form = AchievementForm(
+        request.POST if request.method == "POST" else None, instance=achievement,
+    )
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Prestasi berhasil diperbarui!")
+        return redirect("main:achievement_detail", achievement_id=achievement.pk)
+    return render(request, "achievement_form.html", {
+        "name": "Noe Andrew", "active_page": "achievements", "form": form,
+        "achievement": achievement, "is_update": True, "submit_label": "Simpan Perubahan",
+    })
+
+
+@login_required(login_url="main:login")
+@require_POST
+def delete_achievement(request, achievement_id):
+    if not can_create_achievements(request.user):
+        raise PermissionDenied
+    get_object_or_404(Achievement, pk=achievement_id).delete()
+    messages.success(request, "Prestasi berhasil dihapus!")
+    return redirect("main:show_achievements")
+
+
+@login_required(login_url="main:login")
+@require_POST
+def toggle_achievement_star(request, achievement_id):
+    toggle_content_star(Achievement, achievement_id, request.user)
+    return redirect(safe_next_url(request, reverse("main:show_achievements")))
+
+
+@require_GET
 def get_projects_json(request):
+    """Preserve the Tutorial 05 JSON shape without exposing account relations."""
     projects = with_star_status(
         public_projects(request.GET.get("title", "")), request.user,
     )
@@ -103,6 +188,7 @@ def get_projects_xml(request):
 
 @require_GET
 def show_projects(request):
+    """Serve the page shell; the browser loads and filters records through DRF."""
     context = {
         "name": "Noe Andrew",
         "active_page": "projects",
@@ -252,13 +338,5 @@ def logout_user(request):
 @login_required(login_url="main:login")
 @require_POST
 def toggle_star(request, project_id):
-    # Serialize concurrent toggles on databases supporting row locks. The M2M
-    # table also enforces one membership per (project, user) at database level.
-    with transaction.atomic():
-        project = get_object_or_404(Project.objects.select_for_update(), pk=project_id)
-        if project.starred_by.filter(pk=request.user.pk).exists():
-            project.starred_by.remove(request.user)
-        else:
-            project.starred_by.add(request.user)
-
+    toggle_content_star(Project, project_id, request.user)
     return redirect(safe_next_url(request, reverse("main:show_projects")))

@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 
@@ -40,6 +41,9 @@ class Achievement(models.Model):
         help_text="Image URL or local static path, for example /static/image/PKM.jpeg.",
     )
     display_order = models.PositiveIntegerField(default=0)
+    starred_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name="starred_achievements", blank=True,
+    )
 
     class Meta:
         ordering = ["display_order", "title", "id"]

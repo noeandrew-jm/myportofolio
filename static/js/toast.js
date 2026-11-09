@@ -27,6 +27,8 @@
         }, 220);
     }
 
+
+
     window.showToast = function showToast(title, message, type = "normal", duration = 3000) {
         if (!toast || !titleElement || !messageElement) return;
         clearTimers();
