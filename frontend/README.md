@@ -78,9 +78,9 @@ share a row beneath the student number.
 
 The supplied `static/image/noe.png` has an opaque white background. Its transparent
 derivative is saved separately at `static/image/noe-cutout.png`; the source file
-is unchanged. The built-in imagegen edit tool produced the derivative. See
-[`docs/portrait-asset.md`](../docs/portrait-asset.md) for the edit prompt.
-1w
+is unchanged. The built-in imagegen edit tool removed only the background and
+cropped the canvas while preserving the supplied portrait.
+
 ## Cursor trail
 
 The cursor follower adapts the supplied

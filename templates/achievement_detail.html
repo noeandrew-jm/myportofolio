@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ achievement.title }} - {{ name }}{% endblock %}
+{% block content %}
+<main>
+    <section class="page-intro"><div class="container"><p class="hero-kicker">Detail prestasi</p><h1>{{ achievement.title }}</h1></div></section>
+    <section class="container projects-section" aria-label="Detail prestasi">
+        <article class="project-card project-detail">
+            {% if thumbnail %}<img class="project-image" src="{{ thumbnail }}" alt="{{ achievement.title }}">{% endif %}
+            <h2>Deskripsi</h2><p class="project-description">{{ achievement.description }}</p>
+            {% if achievement.award %}<h2>Penghargaan</h2><p class="content-item-label">{{ achievement.award }}</p>{% endif %}
+            <div class="project-card-actions">
+                {% if can_edit_achievements %}<a class="button button-secondary" href="{% url 'main:update_achievement' achievement.id %}">Edit Prestasi</a>{% endif %}
+                {% if user.is_authenticated %}
+                <form method="post" action="{% url 'main:toggle_achievement_star' achievement.id %}" class="star-form">
+                    {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+                    <button type="submit" class="button button-star{% if achievement.is_starred %} is-starred{% endif %}" aria-pressed="{{ achievement.is_starred|yesno:'true,false' }}">&#9733; {% if achievement.is_starred %}Unstar{% else %}Star{% endif %} <span class="star-count" aria-label="{{ achievement.star_count }} star">{{ achievement.star_count }}</span></button>
+                </form>
+                {% else %}
+                <a class="button button-star" href="{% url 'main:login' %}?next={{ request.path|urlencode }}">&#9733; Login untuk star <span class="star-count" aria-label="{{ achievement.star_count }} star">{{ achievement.star_count }}</span></a>
+                {% endif %}
+                {% if can_create_achievements %}
+                <button type="button" class="button button-danger" popovertarget="delete-achievement">Hapus Prestasi</button>
+                <div id="delete-achievement" class="project-delete-modal" popover="auto" role="dialog" aria-labelledby="delete-title">
+                    <button type="button" class="project-delete-modal__backdrop" popovertarget="delete-achievement" popovertargetaction="hide" aria-label="Tutup konfirmasi hapus" tabindex="-1"></button>
+                    <div class="project-delete-modal__content">
+                        <button type="button" class="project-delete-modal__close" popovertarget="delete-achievement" popovertargetaction="hide" aria-label="Tutup konfirmasi hapus">&times;</button>
+                        <h2 id="delete-title">Hapus Prestasi?</h2><p>Apakah Anda yakin ingin menghapus <strong>{{ achievement.title }}</strong>?</p>
+                        <div class="project-delete-modal__actions">
+                            <button type="button" class="button button-secondary" popovertarget="delete-achievement" popovertargetaction="hide" autofocus>Batal</button>
+                            <form method="post" action="{% url 'main:delete_achievement' achievement.id %}">{% csrf_token %}<button type="submit" class="button button-danger">Ya, Hapus</button></form>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                <a class="button button-secondary" href="{% url 'main:show_achievements' %}">Kembali ke Achievements</a>
+            </div>
+        </article>
+    </section>
+</main>
+{% endblock %}
